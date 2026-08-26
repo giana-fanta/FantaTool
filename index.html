@@ -9,8 +9,9 @@
     <style>
         :root { --bg: #f8f9fa; --primary: #0d6efd; --success: #198754; --danger: #dc3545; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .container { max-width: 1300px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { margin-top: 0; color: #2c3e50; }
+        h2 { color: #2c3e50; font-size: 18px; margin-top: 30px; }
         
         /* Navigazione Schede */
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; overflow-x: auto; }
@@ -25,9 +26,12 @@
         th { background: #f8f9fa; position: sticky; top: 0; }
         tr.stato-M { background-color: #ffe6e6; color: #a00; } /* Mio */
         tr.stato-A { background-color: #e6f2ff; color: #005cc5; } /* Altri */
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; }
+        .badge-ok { background: #d1f5df; color: #147a3a; }
+        .badge-warn { background: #ffe1e1; color: #a00; }
         
         /* Inputs & Buttons */
-        select, input[type="number"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        select, input[type="number"], input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
         input[disabled] { background: #e9ecef; }
         .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; }
         .btn-danger { background: var(--danger); }
@@ -35,10 +39,11 @@
         .toolbar { display: flex; justify-content: space-between; margin-bottom: 20px; }
         
         /* Dashboard Cards */
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .card { padding: 15px; border-radius: 8px; background: #f8f9fa; border: 1px solid #dee2e6; text-align: center; }
-        .card h3 { margin: 0 0 10px 0; font-size: 16px; color: #6c757d; }
-        .card .value { font-size: 24px; font-weight: bold; color: var(--primary); }
+        .card h3 { margin: 0 0 10px 0; font-size: 14px; color: #6c757d; }
+        .card .value { font-size: 22px; font-weight: bold; color: var(--primary); }
+        .note { font-size: 12px; color: #6c757d; margin-top: -10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -67,32 +72,90 @@
                     <div class="value">{{ config.budget_iniziale }}</div>
                 </div>
                 <div class="card">
-                    <h3>Crediti Spesi (Giocatori + Extra)</h3>
-                    <div class="value">{{ creditiSpesiTotali }}</div>
+                    <h3>Crediti Spesi</h3>
+                    <div class="value">{{ round2(creditiSpesiTotali) }}</div>
                 </div>
                 <div class="card">
-                    <h3>Budget Residuo</h3>
-                    <div class="value">{{ budgetResiduo }}</div>
+                    <h3>Crediti Residui</h3>
+                    <div class="value">{{ round2(budgetResiduo) }}</div>
                 </div>
                 <div class="card">
-                    <h3>Slot Liberi Totali</h3>
-                    <div class="value">{{ slotLiberiTotali }} / 25</div>
+                    <h3>% Budget Speso</h3>
+                    <div class="value">{{ formatPct(percBudgetSpeso) }}</div>
+                </div>
+                <div class="card">
+                    <h3>Slot Tot / Occupati / Liberi</h3>
+                    <div class="value">{{ slotTotali }} / {{ slotOccupati }} / {{ slotLiberiTotali }}</div>
+                </div>
+                <div class="card">
+                    <h3>Stato Asta</h3>
+                    <div class="value">{{ statoAsta }}</div>
+                </div>
+                <div class="card">
+                    <h3>Costo Atteso Futuro</h3>
+                    <div class="value">{{ round2(costoAttesoRimanente) }}</div>
+                </div>
+                <div class="card">
+                    <h3>Margine vs Atteso</h3>
+                    <div class="value">{{ round2(margineVsAtteso) }}</div>
+                </div>
+                <div class="card">
+                    <h3>Giocatori Comprati</h3>
+                    <div class="value">{{ giocatoriCompratiTotali }}</div>
+                </div>
+                <div class="card">
+                    <h3>Prezzo Medio Reale</h3>
+                    <div class="value">{{ round2(prezzoMedioReale) }}</div>
                 </div>
             </div>
 
             <h2>Situazione Reparti</h2>
+            <div class="table-container">
             <table>
                 <tr>
-                    <th>Ruolo</th><th>Slot Tot</th><th>Liberi</th><th>Spesi</th><th>Budget MAX per ruolo (Stimato)</th>
+                    <th>Ruolo</th><th>Slot Tot</th><th>Liberi</th><th>Occupati</th>
+                    <th>Budget</th><th>Spesi</th><th>Residui</th><th>% Budget</th>
+                    <th>Crediti / Slot (reali)</th><th>Segnale</th>
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
-                    <td>{{ ruolo }}</td>
-                    <td>{{ config.slot_ruoli[ruolo] }}</td>
-                    <td>{{ config.slot_ruoli[ruolo] - giocatoriComprati(ruolo) }}</td>
-                    <td>{{ spesaPerRuolo(ruolo) }}</td>
-                    <td>{{ budgetAssegnatoPerRuolo(ruolo) }}</td>
+                    <td><strong>{{ ruolo }}</strong></td>
+                    <td>{{ metrics[ruolo].slotTot }}</td>
+                    <td>{{ metrics[ruolo].slotLiberi }}</td>
+                    <td>{{ metrics[ruolo].slotTot - metrics[ruolo].slotLiberi }}</td>
+                    <td>{{ metrics[ruolo].budgetTarget }}</td>
+                    <td>{{ round2(metrics[ruolo].spesaReale) }}</td>
+                    <td>{{ round2(metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) }}</td>
+                    <td>{{ formatPct(metrics[ruolo].budgetTarget ? metrics[ruolo].spesaReale / metrics[ruolo].budgetTarget : 0) }}</td>
+                    <td>{{ round2(creditiPerSlotReale(ruolo)) }}</td>
+                    <td>
+                        <span :class="['badge', (metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) < 0 ? 'badge-warn' : 'badge-ok']">
+                            {{ (metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) < 0 ? 'ATTENZIONE' : 'OK' }}
+                        </span>
+                    </td>
                 </tr>
             </table>
+            </div>
+
+            <h2>Composizione CAT della Rosa (giocatori "Mio")</h2>
+            <div class="table-container">
+            <table>
+                <tr>
+                    <th>Ruolo</th><th>Occ/Pun</th><th>Tit</th><th>Scm/Sca</th><th>Totale</th>
+                    <th>% O/P</th><th>% Tit</th><th>% Scm/Sca</th>
+                </tr>
+                <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
+                    <td><strong>{{ ruolo }}</strong></td>
+                    <td>{{ composizione(ruolo).op }}</td>
+                    <td>{{ composizione(ruolo).tit }}</td>
+                    <td>{{ composizione(ruolo).scm }}</td>
+                    <td>{{ composizione(ruolo).tot }}</td>
+                    <td>{{ formatPct(composizione(ruolo).tot ? composizione(ruolo).op / composizione(ruolo).tot : 0) }}</td>
+                    <td>{{ formatPct(composizione(ruolo).tot ? composizione(ruolo).tit / composizione(ruolo).tot : 0) }}</td>
+                    <td>{{ formatPct(composizione(ruolo).tot ? composizione(ruolo).scm / composizione(ruolo).tot : 0) }}</td>
+                </tr>
+            </table>
+            </div>
+            <p class="note">Residuo = budget di ruolo meno spesa reale. % budget mostra quanto del budget ruolo è già impegnato. Pannello descrittivo, non modifica le formule dell'asta.</p>
         </div>
 
         <!-- LISTE GIOCATORI (P, D, C, A) -->
@@ -131,29 +194,23 @@
 
         <!-- ACQUISTI EXTRA -->
         <div v-if="currentTab === 'Extra'" class="table-container">
-            <h2>Spese Extra (Multe, scambi, etc.)</h2>
+            <h2>Spese Extra (Multe, scambi, slot compensazione, etc.)</h2>
+            <p class="note">Struttura identica al foglio "Extra" del file Excel: una riga per ruolo con Slot (numero di slot di rosa consumati) e Crediti spesi.</p>
             <table>
                 <tr>
-                    <th>Ruolo</th><th>Descrizione</th><th>Costo</th><th>Azione</th>
+                    <th>Ruolo</th><th>Slot</th><th>Crediti</th>
                 </tr>
-                <tr v-for="(ex, index) in extra" :key="index">
-                    <td>
-                        <select v-model="ex.ruolo" @change="salvaStato">
-                            <option value="P">P</option><option value="D">D</option>
-                            <option value="C">C</option><option value="A">A</option>
-                        </select>
-                    </td>
-                    <td><input type="text" v-model="ex.descrizione" @input="salvaStato"></td>
-                    <td><input type="number" v-model.number="ex.costo" @input="salvaStato"></td>
-                    <td><button class="btn btn-danger" @click="rimuoviExtra(index)">X</button></td>
+                <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
+                    <td><strong>{{ ruolo }}</strong></td>
+                    <td><input type="number" min="0" v-model.number="extra[ruolo].slot" @input="salvaStato"></td>
+                    <td><input type="number" min="0" v-model.number="extra[ruolo].crediti" @input="salvaStato"></td>
                 </tr>
             </table>
-            <button class="btn btn-success" @click="aggiungiExtra">+ Aggiungi Extra</button>
         </div>
     </div>
 
     <script>
-        const { createApp, ref, computed, watch, onMounted } = Vue
+        const { createApp, ref, computed, onMounted } = Vue
 
         createApp({
             setup() {
@@ -162,8 +219,46 @@
                 
                 // Stato Reattivo
                 const giocatori = ref([]);
-                const extra = ref([]);
+                const extra = ref({
+                    P: { slot: 0, crediti: 0 },
+                    D: { slot: 0, crediti: 0 },
+                    C: { slot: 0, crediti: 0 },
+                    A: { slot: 0, crediti: 0 }
+                });
                 const config = ref({ budget_iniziale: 500, slot_ruoli: { P:3, D:8, C:8, A:6 } });
+
+                // Parametri "Dashboard" del file Excel (target di budget e slot per ruolo,
+                // tolleranze e potenze usate nel motore MAX_D). Riportati 1:1 dal foglio Dashboard.
+                const ROLE_CONFIG = {
+                    P: { budgetTarget: 30,  targetOP: 0.30, targetTit: 0.30, tolleranza: 0.9, potenza: 3 },
+                    D: { budgetTarget: 45,  targetOP: 0.30, targetTit: 0.20, tolleranza: 0.9, potenza: 2 },
+                    C: { budgetTarget: 100, targetOP: 0.30, targetTit: 0.20, tolleranza: 0.8, potenza: 0.5 },
+                    A: { budgetTarget: 325, targetOP: 0.30, targetTit: 0.10, tolleranza: null, potenza: null } // per gli attaccanti V=W=X=1 fisso
+                };
+                // Pesi per l'indice di "inflazione di ruolo" (colonna F del foglio Dashboard)
+                const PESO_INFLAZIONE = { Occ: 5, Pun: 4, Tit: 3, Scm: 2, Sca: 1 };
+                // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
+                const PESO_CATEGORIA = { Occ: 0.5, Pun: 0.35, Tit: 0.25, Scm: 0.15 }; // default (Sca e altro) = 0.05
+
+                // Normalizza il vecchio formato "extra" (array con descrizione) verso il nuovo,
+                // così un backup/localStorage precedente resta leggibile.
+                function normalizzaExtra(valore) {
+                    const base = { P: { slot: 0, crediti: 0 }, D: { slot: 0, crediti: 0 }, C: { slot: 0, crediti: 0 }, A: { slot: 0, crediti: 0 } };
+                    if (!valore) return base;
+                    if (Array.isArray(valore)) {
+                        valore.forEach(ex => {
+                            if (base[ex.ruolo]) {
+                                base[ex.ruolo].slot += 1;
+                                base[ex.ruolo].crediti += (ex.costo || 0);
+                            }
+                        });
+                        return base;
+                    }
+                    ['P','D','C','A'].forEach(r => {
+                        if (valore[r]) base[r] = { slot: valore[r].slot || 0, crediti: valore[r].crediti || 0 };
+                    });
+                    return base;
+                }
 
                 // Inizializzazione Dati (da LocalStorage o fetch JSON)
                 onMounted(async () => {
@@ -171,14 +266,14 @@
                     if (dbSalvato) {
                         const parsed = JSON.parse(dbSalvato);
                         giocatori.value = parsed.giocatori;
-                        extra.value = parsed.extra || [];
+                        extra.value = normalizzaExtra(parsed.extra);
                         config.value = parsed.config;
                     } else {
                         try {
                             const res = await fetch('dati.json');
                             const data = await res.json();
                             giocatori.value = data.giocatori;
-                            extra.value = data.extra;
+                            extra.value = normalizzaExtra(data.extra);
                             config.value = data.config;
                             salvaStato(); // Scrive subito il db fresco in locale
                         } catch (e) {
@@ -195,61 +290,165 @@
                     }));
                 };
 
-                // --- CALCOLI DINAMICI E BUSINESS LOGIC ---
-                
-                const creditiSpesiGiocatori = computed(() => {
-                    return giocatori.value
-                        .filter(g => g.stato === 'M')
-                        .reduce((sum, g) => sum + (g.costo_reale || 0), 0);
+                // --- HELPER DI CONTEGGIO (equivalenti a COUNTIF/COUNTIFS/SUMIF di Excel) ---
+
+                const countStato = (ruolo, stato) =>
+                    giocatori.value.filter(g => g.ruolo === ruolo && g.stato === stato).length;
+
+                const countCatStato = (ruolo, cat, stato) =>
+                    giocatori.value.filter(g => g.ruolo === ruolo && g.cat === cat && g.stato === stato).length;
+
+                const countCat = (ruolo, cat) =>
+                    giocatori.value.filter(g => g.ruolo === ruolo && g.cat === cat).length;
+
+                // Colonna F del foglio Dashboard: quota "di valore" ancora libera sul mercato per il ruolo,
+                // pesata per importanza di categoria (Occ 5, Pun 4, Tit 3, Scm 2, Sca 1)
+                const inflazioneRuolo = (ruolo) => {
+                    let num = 0, den = 0;
+                    for (const cat in PESO_INFLAZIONE) {
+                        const w = PESO_INFLAZIONE[cat];
+                        num += countCatStato(ruolo, cat, 'L') * w;
+                        den += countCat(ruolo, cat) * w;
+                    }
+                    return den === 0 ? 0 : 1 - (num / den);
+                };
+
+                // Replica esatta delle colonne B..X del foglio Dashboard (righe 5-8, una per ruolo)
+                const roleMetrics = (ruolo) => {
+                    const cfg = ROLE_CONFIG[ruolo];
+                    const slotTot = config.value.slot_ruoli[ruolo];
+                    const slotLiberi = slotTot - countStato(ruolo, 'M') - (extra.value[ruolo]?.slot || 0);
+                    const budgetTarget = cfg.budgetTarget;
+                    const spesaReale = giocatori.value
+                        .filter(g => g.ruolo === ruolo && g.stato === 'M')
+                        .reduce((s, g) => s + (g.costo_reale || 0), 0) + (extra.value[ruolo]?.crediti || 0);
+                    const F = inflazioneRuolo(ruolo);
+
+                    const H = Math.ceil(slotTot * cfg.targetOP);  // target slot Occ/Pun
+                    const I = Math.ceil(slotTot * cfg.targetTit); // target slot Titolari
+                    const J = countCatStato(ruolo, 'Occ', 'M') + countCatStato(ruolo, 'Pun', 'M');
+                    const K = countCatStato(ruolo, 'Tit', 'M');
+                    const L = Math.max(0, H - J);
+                    const M = Math.max(0, I - K);
+                    const N = Math.max(0, slotLiberi - L - M);
+
+                    const O = slotTot ? (budgetTarget / slotTot) * 1.425 / 1.2425 : 0;
+                    const P = slotTot ? (budgetTarget / slotTot) * 1.25 / 1.2425 : 0;
+                    const Q = slotTot ? (budgetTarget / slotTot) * 1.1 / 1.2425 : 0;
+
+                    const R = L * O + M * P + N * Q;
+                    const S = Math.max(0, L - 1) * O + M * P + Math.max(0, slotLiberi - 1 - Math.max(0, L - 1) - M) * Q;
+                    const T = L * O + Math.max(0, M - 1) * P + Math.max(0, slotLiberi - 1 - L - Math.max(0, M - 1)) * Q;
+                    const U = L * O + M * P + Math.max(0, slotLiberi - 1 - L - M) * Q;
+
+                    let V = 1, W = 1, X = 1;
+                    if (ruolo !== 'A') {
+                        const tol = cfg.tolleranza, pow = cfg.potenza;
+                        const clamp01 = (den) => {
+                            if (den === 0) return 1; // IFERROR -> 1
+                            return Math.max(0, Math.min(1, (budgetTarget - spesaReale) / den));
+                        };
+                        V = Math.pow(clamp01((O + S) * tol), pow);
+                        W = Math.pow(clamp01((P + T) * tol), pow);
+                        X = Math.pow(clamp01((Q + U) * tol), pow);
+                    }
+
+                    return { slotTot, slotLiberi, budgetTarget, spesaReale, F, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X };
+                };
+
+                const metrics = computed(() => ({
+                    P: roleMetrics('P'), D: roleMetrics('D'), C: roleMetrics('C'), A: roleMetrics('A')
+                }));
+
+                // --- CALCOLI GLOBALI (foglio Dashboard, celle B1:B10) ---
+
+                // Crediti Spesi totali = somma della spesa reale per ruolo (giocatori "Mio" + Extra di quel ruolo,
+                // già inclusi una sola volta in spesaReale). Gli Extra non vengono più sommati una seconda volta.
+                const creditiSpesiTotali = computed(() => {
+                    const m = metrics.value;
+                    return m.P.spesaReale + m.D.spesaReale + m.C.spesaReale + m.A.spesaReale;
                 });
 
-                const creditiSpesiExtra = computed(() => {
-                    return extra.value.reduce((sum, ex) => sum + (ex.costo || 0), 0);
-                });
-
-                const creditiSpesiTotali = computed(() => creditiSpesiGiocatori.value + creditiSpesiExtra.value);
                 const budgetResiduo = computed(() => config.value.budget_iniziale - creditiSpesiTotali.value);
+                const percBudgetSpeso = computed(() => config.value.budget_iniziale ? creditiSpesiTotali.value / config.value.budget_iniziale : 0);
 
-                const giocatoriComprati = (ruolo) => {
-                    return giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'M').length;
-                };
+                const costoAttesoRimanente = computed(() => {
+                    const m = metrics.value;
+                    return m.P.R + m.D.R + m.C.R + m.A.R;
+                });
+                const margineVsAtteso = computed(() => budgetResiduo.value - costoAttesoRimanente.value);
 
+                const slotTotali = computed(() => Object.values(config.value.slot_ruoli).reduce((s, v) => s + v, 0));
                 const slotLiberiTotali = computed(() => {
-                    let occupati = giocatori.value.filter(g => g.stato === 'M').length;
-                    return 25 - occupati;
+                    const m = metrics.value;
+                    return m.P.slotLiberi + m.D.slotLiberi + m.C.slotLiberi + m.A.slotLiberi;
+                });
+                const slotOccupati = computed(() => slotTotali.value - slotLiberiTotali.value);
+
+                const nessunAcquistoEffettuato = computed(() => {
+                    const nessunGiocatoreComprato = !giocatori.value.some(g => g.stato === 'M');
+                    const nessunExtraUsato = ['P', 'D', 'C', 'A'].every(r => !(extra.value[r]?.slot) && !(extra.value[r]?.crediti));
+                    return nessunGiocatoreComprato && nessunExtraUsato;
+                });
+                const statoAsta = computed(() => nessunAcquistoEffettuato.value ? 'NON INIZIATA' : 'IN CORSO');
+
+                const giocatoriCompratiTotali = computed(() => giocatori.value.filter(g => g.stato === 'M').length);
+                const prezzoMedioReale = computed(() => {
+                    const comprati = giocatori.value.filter(g => g.stato === 'M');
+                    if (comprati.length === 0) return 0;
+                    return comprati.reduce((s, g) => s + (g.costo_reale || 0), 0) / comprati.length;
                 });
 
-                const spesaPerRuolo = (ruolo) => {
-                    let spesaGioc = giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'M').reduce((s, g) => s + (g.costo_reale || 0), 0);
-                    let spesaEx = extra.value.filter(ex => ex.ruolo === ruolo).reduce((s, ex) => s + (ex.costo || 0), 0);
-                    return spesaGioc + spesaEx;
+                // Indice di inflazione GLOBALE usato dentro MAX_D: MAX(0.1, Crediti_Residui / Costo_Atteso_Rimanente)
+                const inflazioneGlobale = computed(() => {
+                    const b10 = costoAttesoRimanente.value;
+                    const raw = b10 === 0 ? 1 : budgetResiduo.value / b10; // IFERROR(...,1)
+                    return Math.max(0.1, raw);
+                });
+
+                const giocatoriComprati = (ruolo) => countStato(ruolo, 'M');
+
+                const spesaPerRuolo = (ruolo) => metrics.value[ruolo].spesaReale;
+
+                const creditiPerSlotReale = (ruolo) => {
+                    const occupati = metrics.value[ruolo].slotTot - metrics.value[ruolo].slotLiberi;
+                    return occupati ? metrics.value[ruolo].spesaReale / occupati : 0;
                 };
 
-                // Proxy della logica del Dashboard: Allocazione teorica del budget rimanente
+                const composizione = (ruolo) => {
+                    const op = countCatStato(ruolo, 'Occ', 'M') + countCatStato(ruolo, 'Pun', 'M');
+                    const tit = countCatStato(ruolo, 'Tit', 'M');
+                    const scm = countCatStato(ruolo, 'Scm', 'M') + countCatStato(ruolo, 'Sca', 'M');
+                    return { op, tit, scm, tot: op + tit + scm };
+                };
+
+                // Budget/Residuo per ruolo (colonna "Residui" del Control Panel: budget target - speso)
                 const budgetAssegnatoPerRuolo = (ruolo) => {
-                    const allocazioneBase = { P: 30, D: 45, C: 100, A: 325 }; // Inserisci i tuoi target da Dashboard!
-                    const residuoRuolo = allocazioneBase[ruolo] - spesaPerRuolo(ruolo);
-                    return residuoRuolo > 0 ? residuoRuolo : 0;
+                    const m = metrics.value[ruolo];
+                    return m.budgetTarget - m.spesaReale;
                 };
 
-                // Motore Ricalcolo MAX_D (Il core della tua app)
+                // Motore Ricalcolo MAX_D — replica esatta della formula presente in ogni foglio P/D/C/A
                 const calcolaMaxD = (g) => {
                     if (g.stato !== 'L') return '-';
-                    
-                    /* 
-                     * INSERISCI QUI LA TRADUZIONE DELLA TUA FORMULA EXCEL
-                     * Attualmente implementata: MAX * Indice_Inflazione * Modificatore_Categoria
-                     */
-                    let inflazione = budgetResiduo.value / 500; // Formula semplificata per evitare divisioni per 0
-                    if (inflazione < 0.1) inflazione = 0.1;
 
-                    let coeff_categoria = 1.0;
-                    if (g.cat === 'Occ') coeff_categoria = 1.15;
-                    if (g.cat === 'Pun') coeff_categoria = 1.05;
-                    if (g.cat === 'Scm') coeff_categoria = 0.90;
+                    // Se nessun giocatore è ancora stato assegnato (COSTO_REALE vuoto ovunque),
+                    // l'Excel restituisce il MAX grezzo senza alcun aggiustamento.
+                    if (nessunAcquistoEffettuato.value) return g.max;
 
-                    let max_d_calcolato = Math.round(g.max * inflazione * coeff_categoria);
-                    return max_d_calcolato < 1 ? 1 : max_d_calcolato;
+                    const pesoCategoria = PESO_CATEGORIA[g.cat] !== undefined ? PESO_CATEGORIA[g.cat] : 0.05;
+                    const m = metrics.value[g.ruolo];
+                    const moltiplicatoreCategoria = 1 + m.F * pesoCategoria;
+
+                    let fattoreRuolo = 1; // per gli attaccanti (A) il fattore V/W/X non è applicato (=1)
+                    if (g.ruolo !== 'A') {
+                        if (g.cat === 'Occ' || g.cat === 'Pun') fattoreRuolo = m.V;
+                        else if (g.cat === 'Tit') fattoreRuolo = m.W;
+                        else fattoreRuolo = m.X; // Scm, Sca e categorie non note
+                    }
+
+                    let valore = Math.round(g.max * inflazioneGlobale.value * moltiplicatoreCategoria * fattoreRuolo);
+                    return valore < 1 ? 1 : valore;
                 };
 
                 // --- UI INTERACTIONS ---
@@ -262,9 +461,6 @@
                     if (g.stato !== 'M') g.costo_reale = 0; // Azzera costo se lo svincoli o va ad altri
                     salvaStato();
                 };
-
-                const aggiungiExtra = () => { extra.value.push({ ruolo: 'P', descrizione: '', costo: 0 }); salvaStato(); };
-                const rimuoviExtra = (index) => { extra.value.splice(index, 1); salvaStato(); };
 
                 const esportaDati = () => {
                     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({giocatori: giocatori.value, extra: extra.value, config: config.value}));
@@ -283,11 +479,15 @@
                     }
                 };
 
+                const round2 = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
+                const formatPct = (v) => (v * 100).toFixed(1) + '%';
+
                 return { 
-                    tabs, currentTab, config, extra, giocatoriFiltered,
-                    creditiSpesiTotali, budgetResiduo, slotLiberiTotali,
-                    giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo,
-                    calcolaMaxD, onUpdateStato, salvaStato, aggiungiExtra, rimuoviExtra, esportaDati, resetDati
+                    tabs, currentTab, config, extra, giocatoriFiltered, metrics,
+                    creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
+                    statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
+                    giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
+                    calcolaMaxD, onUpdateStato, salvaStato, esportaDati, resetDati, round2, formatPct
                 }
             }
         }).mount('#app')
