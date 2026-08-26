@@ -88,6 +88,8 @@
                 <button class="btn btn-secondary" @click="datiSensibiliNascosti = !datiSensibiliNascosti" style="margin-left:10px;">{{ datiSensibiliNascosti ? '👁 Show' : '🙈 Hide' }}</button>
                 <button class="btn btn-outline" v-if="passwordImpostata" @click="cambiaPassword" style="margin-left:10px;">Cambia Password</button>
                 <button class="btn btn-success" @click="esportaDati" style="margin-left:10px;">↓ Esporta Backup</button>
+                <button class="btn btn-success" @click="triggerImportBackup" style="margin-left:10px;">↑ Importa Backup</button>
+                <input type="file" id="inputBackup" accept="application/json,.json" @change="importaDati" style="display:none">
                 <button class="btn btn-danger" @click="resetDati" style="margin-left:10px;">Reset Totale</button>
             </div>
         </div>
@@ -671,6 +673,39 @@
                     downloadAnchorNode.remove();
                 };
 
+                const triggerImportBackup = () => {
+                    document.getElementById('inputBackup').click();
+                };
+
+                // Importa un file esportato con "Esporta Backup": ripristina esattamente
+                // giocatori, extra e config, cioè le stesse tre chiavi lette da salvaStato()
+                // all'avvio, così lo stato ricostruito coincide con quello al momento dell'export.
+                const importaDati = (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const parsed = JSON.parse(e.target.result);
+                            if (!Array.isArray(parsed.giocatori) || !parsed.config) {
+                                alert("File di backup non valido: mancano i dati essenziali (giocatori/config).");
+                                return;
+                            }
+                            if (!confirm("Importare questo backup? I dati attuali verranno sovrascritti.")) return;
+                            giocatori.value = parsed.giocatori;
+                            extra.value = normalizzaExtra(parsed.extra);
+                            config.value = parsed.config;
+                            salvaStato();
+                            alert("Backup importato correttamente.");
+                        } catch (err) {
+                            alert("Errore durante la lettura del file: non è un backup JSON valido.");
+                        } finally {
+                            event.target.value = '';
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+
                 const resetDati = () => {
                     if(confirm("Sei sicuro? Perderai tutti i costi e gli stati assegnati. L'operazione ricaricherà i dati dal file iniziale.")) {
                         localStorage.removeItem('fanta_db');
@@ -686,7 +721,7 @@
                     creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
-                    calcolaMaxD, onUpdateStato, salvaStato, esportaDati, resetDati, round2, formatPct,
+                    calcolaMaxD, onUpdateStato, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword
                 }
