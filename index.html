@@ -85,9 +85,21 @@
         .filtri-bar .campo-search { flex: 2; min-width: 200px; }
         .filtri-bar .campo-search input { margin-top: 18px; }
         .filtri-bar .campo select, .filtri-bar .campo input[type="text"] { min-width: 150px; }
-        .checkbox-group { display: flex; flex-wrap: wrap; gap: 4px 14px; }
-        .checkbox-group label { font-size: 13px; font-weight: normal; color: #ced3dd; display: flex; align-items: center; gap: 4px; margin: 0; white-space: nowrap; }
-        .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+        .checkbox-group label { font-size: 12.5px; font-weight: normal; color: var(--text-muted); display: flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+        .checkbox-group label:hover { border-color: #4d5566; }
+        .checkbox-group input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--primary); }
+        /* Chip CAT: stessi colori usati nei grafici a torta di composizione (coerenza con il resto dell'app) */
+        .checkbox-group label:has(input[value="Occ"]:checked) { background: #202c40; border-color: var(--primary); color: var(--primary); }
+        .checkbox-group label:has(input[value="Pun"]:checked) { background: #1f3327; border-color: var(--success); color: var(--success); }
+        .checkbox-group label:has(input[value="Tit"]:checked) { background: var(--squadra-bg); border-color: var(--squadra); color: var(--squadra-text); }
+        .checkbox-group label:has(input[value="Scm"]:checked) { background: #3a262b; border-color: var(--danger); color: var(--danger); }
+        .checkbox-group label:has(input[value="Sca"]:checked) { background: #262931; border-color: var(--text-muted); color: #ced3dd; }
+        /* Chip STATO: stessi colori usati per evidenziare le righe Mio/Altri in tabella */
+        .checkbox-group label:has(input[value="L"]:checked) { background: #1f3327; border-color: var(--success); color: var(--success); }
+        .checkbox-group label:has(input[value="M"]:checked) { background: #3a262b; border-color: #e8919e; color: #e8919e; }
+        .checkbox-group label:has(input[value="A"]:checked) { background: #202c40; border-color: #8fb3ea; color: #8fb3ea; }
+        .btn-reset-filtri { padding: 8px 12px; font-size: 13px; }
         .link-btn { background: none; border: none; color: var(--primary); font-size: 11px; cursor: pointer; padding: 0; text-decoration: underline; }
         th.th-ordinabile { cursor: pointer; user-select: none; }
         th.th-ordinabile:hover { background: #343a46; }
@@ -251,7 +263,7 @@
                     </div>
                 </div>
                 <div class="campo" style="justify-content:end;">
-                    <button class="btn btn-outline" @click="resetFiltri">Reset filtri e ordinamento</button>
+                    <button class="btn btn-outline btn-reset-filtri" @click="resetFiltri">Reset Filtri</button>
                 </div>
             </div>
             <table>
