@@ -286,7 +286,7 @@
       "max": 3,
       "stato": "L",
       "costo_reale": 0,
-      "note": ""
+      "note": "INF. Recupera a metà Novembre"
     },
     {
       "nome": "CALVANI",
@@ -574,7 +574,7 @@
       "max": 1,
       "stato": "L",
       "costo_reale": 0,
-      "note": ""
+      "note": "INF. Recupera a inizio Ottobre"
     },
     {
       "nome": "IDZES",
@@ -1798,7 +1798,7 @@
       "max": 1,
       "stato": "L",
       "costo_reale": 0,
-      "note": ""
+      "note": "INF. Recupera a Novembre"
     },
     {
       "nome": "NJIE",
@@ -2140,7 +2140,7 @@
       "max": 20,
       "stato": "L",
       "costo_reale": 0,
-      "note": "Piaz."
+      "note": "Piaz., INF. Recupera a fine Settembre"
     },
     {
       "nome": "ZERBIN",
@@ -2644,7 +2644,7 @@
       "max": 1,
       "stato": "L",
       "costo_reale": 0,
-      "note": ""
+      "note": "INF. Recupera a inizio Ottobre"
     },
     {
       "nome": "THURAM M.",
@@ -2698,7 +2698,7 @@
       "max": 100,
       "stato": "L",
       "costo_reale": 0,
-      "note": ""
+      "note": "INF. Recupera a Novembre"
     },
     {
       "nome": "ZAPATA",
