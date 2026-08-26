@@ -44,6 +44,13 @@
         .card h3 { margin: 0 0 10px 0; font-size: 14px; color: #6c757d; }
         .card .value { font-size: 22px; font-weight: bold; color: var(--primary); }
         .note { font-size: 12px; color: #6c757d; margin-top: -10px; margin-bottom: 15px; }
+        .filtri-bar { display: flex; gap: 12px; margin-bottom: 15px; flex-wrap: wrap; align-items: end; }
+        .filtri-bar .campo { display: flex; flex-direction: column; }
+        .filtri-bar label { font-size: 12px; color: #6c757d; margin-bottom: 4px; }
+        .filtri-bar .campo-search { flex: 2; min-width: 200px; }
+        .filtri-bar .campo select, .filtri-bar .campo input { min-width: 150px; }
+        .btn-secondary { background: #6c757d; }
+        .btn-outline { background: white; color: #6c757d; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
@@ -160,6 +167,34 @@
 
         <!-- LISTE GIOCATORI (P, D, C, A) -->
         <div v-if="['P', 'D', 'C', 'A'].includes(currentTab)" class="table-container">
+            <div class="filtri-bar">
+                <div class="campo campo-search">
+                    <label>Cerca per nome</label>
+                    <input type="text" v-model="filtri.search" placeholder="Cerca giocatore...">
+                </div>
+                <div class="campo">
+                    <label>Filtra per CAT</label>
+                    <select v-model="filtri.cat">
+                        <option value="">Tutte</option>
+                        <option v-for="c in categorie" :key="c" :value="c">{{ c }}</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Filtra per STATO</label>
+                    <select v-model="filtri.stato">
+                        <option value="">Tutti</option>
+                        <option value="L">Liberi (L)</option>
+                        <option value="M">Mio (M)</option>
+                        <option value="A">Altri (A)</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <button class="btn btn-secondary" @click="toggleOrdinamento">{{ labelOrdinamento }}</button>
+                </div>
+                <div class="campo">
+                    <button class="btn btn-outline" @click="resetFiltri">Reset filtri</button>
+                </div>
+            </div>
             <table>
                 <tr>
                     <th style="width: 25%">NOME</th>
@@ -428,10 +463,10 @@
                     return m.budgetTarget - m.spesaReale;
                 };
 
-                // Motore Ricalcolo MAX_D — replica esatta della formula presente in ogni foglio P/D/C/A
-                const calcolaMaxD = (g) => {
-                    if (g.stato !== 'L') return '-';
-
+                // Motore Ricalcolo MAX_D — replica esatta della formula presente in ogni foglio P/D/C/A.
+                // Restituisce sempre un numero (anche per uno "L" ipotetico), usato sia per la colonna
+                // MAX_D sia come base per l'ordinamento per prezzo.
+                const calcolaMaxDNumerico = (g) => {
                     // Se nessun giocatore è ancora stato assegnato (COSTO_REALE vuoto ovunque),
                     // l'Excel restituisce il MAX grezzo senza alcun aggiustamento.
                     if (nessunAcquistoEffettuato.value) return g.max;
@@ -451,10 +486,56 @@
                     return valore < 1 ? 1 : valore;
                 };
 
+                const calcolaMaxD = (g) => g.stato !== 'L' ? '-' : calcolaMaxDNumerico(g);
+
+                // Valore usato per l'ordinamento "per prezzo": MAX_D per i liberi, costo reale per i
+                // giocatori "Mio", MAX come riferimento indicativo per quelli "Altri" (costo reale ignoto).
+                const prezzoOrdinamento = (g) => {
+                    if (g.stato === 'M') return g.costo_reale || 0;
+                    if (g.stato === 'A') return g.max;
+                    return calcolaMaxDNumerico(g);
+                };
+
+                // --- RICERCA, FILTRI E ORDINAMENTO ---
+
+                const categorie = ['Occ', 'Pun', 'Tit', 'Scm', 'Sca'];
+                const filtri = ref({ search: '', cat: '', stato: '', ordinaPrezzo: null }); // ordinaPrezzo: null | 'asc' | 'desc'
+
+                const toggleOrdinamento = () => {
+                    if (filtri.value.ordinaPrezzo === null) filtri.value.ordinaPrezzo = 'desc';
+                    else if (filtri.value.ordinaPrezzo === 'desc') filtri.value.ordinaPrezzo = 'asc';
+                    else filtri.value.ordinaPrezzo = null;
+                };
+
+                const labelOrdinamento = computed(() => {
+                    if (filtri.value.ordinaPrezzo === 'desc') return '↓ Prezzo (alto → basso)';
+                    if (filtri.value.ordinaPrezzo === 'asc') return '↑ Prezzo (basso → alto)';
+                    return 'A-Z Alfabetico';
+                });
+
+                const resetFiltri = () => {
+                    filtri.value = { search: '', cat: '', stato: '', ordinaPrezzo: null };
+                };
+
                 // --- UI INTERACTIONS ---
 
                 const giocatoriFiltered = computed(() => {
-                    return giocatori.value.filter(g => g.ruolo === currentTab.value);
+                    let list = giocatori.value.filter(g => g.ruolo === currentTab.value);
+
+                    const search = filtri.value.search.trim().toLowerCase();
+                    if (search) list = list.filter(g => g.nome.toLowerCase().includes(search));
+                    if (filtri.value.cat) list = list.filter(g => g.cat === filtri.value.cat);
+                    if (filtri.value.stato) list = list.filter(g => g.stato === filtri.value.stato);
+
+                    list = [...list];
+                    if (filtri.value.ordinaPrezzo === 'asc') {
+                        list.sort((a, b) => prezzoOrdinamento(a) - prezzoOrdinamento(b));
+                    } else if (filtri.value.ordinaPrezzo === 'desc') {
+                        list.sort((a, b) => prezzoOrdinamento(b) - prezzoOrdinamento(a));
+                    } else {
+                        list.sort((a, b) => a.nome.localeCompare(b.nome));
+                    }
+                    return list;
                 });
 
                 const onUpdateStato = (g) => {
@@ -487,7 +568,8 @@
                     creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
-                    calcolaMaxD, onUpdateStato, salvaStato, esportaDati, resetDati, round2, formatPct
+                    calcolaMaxD, onUpdateStato, salvaStato, esportaDati, resetDati, round2, formatPct,
+                    filtri, categorie, toggleOrdinamento, labelOrdinamento, resetFiltri
                 }
             }
         }).mount('#app')
