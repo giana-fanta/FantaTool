@@ -43,6 +43,10 @@
         .card { padding: 15px; border-radius: 8px; background: #f8f9fa; border: 1px solid #dee2e6; text-align: center; }
         .card h3 { margin: 0 0 10px 0; font-size: 14px; color: #6c757d; }
         .card .value { font-size: 22px; font-weight: bold; color: var(--primary); }
+        .card.card-positive { background: #e6f7ec; border-color: #b7e6c6; }
+        .card.card-positive .value { color: var(--success); }
+        .card.card-negative { background: #fdeaea; border-color: #f3c2c2; }
+        .card.card-negative .value { color: var(--danger); }
         .note { font-size: 12px; color: #6c757d; margin-top: -10px; margin-bottom: 15px; }
         .filtri-bar { display: flex; gap: 12px; margin-bottom: 15px; flex-wrap: wrap; align-items: end; }
         .filtri-bar .campo { display: flex; flex-direction: column; }
@@ -102,7 +106,7 @@
                     <h3>Costo Atteso Futuro</h3>
                     <div class="value">{{ round2(costoAttesoRimanente) }}</div>
                 </div>
-                <div class="card">
+                <div class="card" :class="{ 'card-positive': margineVsAtteso > 0, 'card-negative': margineVsAtteso < 0 }">
                     <h3>Margine vs Atteso</h3>
                     <div class="value">{{ round2(margineVsAtteso) }}</div>
                 </div>
@@ -453,7 +457,9 @@
                 const composizione = (ruolo) => {
                     const op = countCatStato(ruolo, 'Occ', 'M') + countCatStato(ruolo, 'Pun', 'M');
                     const tit = countCatStato(ruolo, 'Tit', 'M');
-                    const scm = countCatStato(ruolo, 'Scm', 'M') + countCatStato(ruolo, 'Sca', 'M');
+                    // Gli slot "Extra" (multe, scambi, compensazioni) vengono conteggiati come Scm/Sca,
+                    // poiché non hanno una categoria propria ma occupano comunque uno slot di rosa.
+                    const scm = countCatStato(ruolo, 'Scm', 'M') + countCatStato(ruolo, 'Sca', 'M') + (extra.value[ruolo]?.slot || 0);
                     return { op, tit, scm, tot: op + tit + scm };
                 };
 
