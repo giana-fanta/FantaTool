@@ -1,0 +1,2723 @@
+{
+  "giocatori": [
+    {
+      "nome": "BUTEZ",
+      "ruolo": "P",
+      "cat": "Pun",
+      "max": 18,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "eventualmente da trio"
+    },
+    {
+      "nome": "CAPRILE",
+      "ruolo": "P",
+      "cat": "Pun",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CARNESECCHI",
+      "ruolo": "P",
+      "cat": "Occ",
+      "max": 18,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "eventualmente da trio"
+    },
+    {
+      "nome": "CORVI",
+      "ruolo": "P",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DE GEA",
+      "ruolo": "P",
+      "cat": "Occ",
+      "max": 12,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "FALCONE",
+      "ruolo": "P",
+      "cat": "Pun",
+      "max": 12,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "JOSEP MARTINEZ",
+      "ruolo": "P",
+      "cat": "Occ",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "da trio"
+    },
+    {
+      "nome": "MAIGNAN",
+      "ruolo": "P",
+      "cat": "Occ",
+      "max": 25,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "da trio"
+    },
+    {
+      "nome": "MANDAS",
+      "ruolo": "P",
+      "cat": "Pun",
+      "max": 14,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MASCARDI",
+      "ruolo": "P",
+      "cat": "Scm",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MERET / MILINKOVIC",
+      "ruolo": "P",
+      "cat": "Occ",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "da trio"
+    },
+    {
+      "nome": "MURIC",
+      "ruolo": "P",
+      "cat": "Scm",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "OKOYE",
+      "ruolo": "P",
+      "cat": "Pun",
+      "max": 14,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PALMISANI",
+      "ruolo": "P",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SKORUPSKI",
+      "ruolo": "P",
+      "cat": "Pun",
+      "max": 12,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "STANKOVIC",
+      "ruolo": "P",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SVILAR",
+      "ruolo": "P",
+      "cat": "Occ",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "da trio"
+    },
+    {
+      "nome": "THIAM",
+      "ruolo": "P",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "TURATI",
+      "ruolo": "P",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "riserva di Muric"
+    },
+    {
+      "nome": "VICARIO",
+      "ruolo": "P",
+      "cat": "Occ",
+      "max": 25,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "da trio"
+    },
+    {
+      "nome": "ABANKWAH",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BADIASHILE",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BARTESAGHI",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 9,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Estupinan"
+    },
+    {
+      "nome": "BASTONI",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BELLA-KOTCHAP",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BELLANOVA",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Zappacosta"
+    },
+    {
+      "nome": "BERNASCONI",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BIRINDELLI",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BISSECK",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BRACAGLIA",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BREMER",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BUONGIORNO",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CALVANI",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CAMBIASO",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CARBONI A.",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CELIK",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CHALOBAH",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CITTADINI",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "COCO",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "COMUZZO",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CORREIA T.",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "COUTO",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DANILO VEIGA",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DELPRATO",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DI LORENZO",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DIMARCO",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 17,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "DODO'",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 7,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DOEKHI",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DOIG",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Obrador"
+    },
+    {
+      "nome": "DRAGUSIN",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ESTUPINAN",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Bartesaghi"
+    },
+    {
+      "nome": "FLORIANI M.",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "FORTINI",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Pedersen"
+    },
+    {
+      "nome": "FRANJIC",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GABBIA",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GALLO",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GASPAR",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GILA",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "HAINAUT",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "HAPS",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "HEGGEM",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "HELLAND",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "HERMOSO",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "HIEN",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "IDZES",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ISMAJLI",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "JIMENEZ A.",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Dodò"
+    },
+    {
+      "nome": "KABASELE",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KAIKI",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Valle"
+    },
+    {
+      "nome": "KALULU",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KAMARA H.",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KELLY",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 2,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KEMPF",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KOSSOUNOU",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KOUADIO",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KRISTENSEN",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "L.RANIERI",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LEYSEN",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LUCCHESI",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LUCUMI'",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MANCINI",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MANGAS",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MARCANDALLI",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MINA",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 2,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MIRANDA",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MITAJ",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MOLINA N.",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 12,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "NDIAYE",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "N'DICKA",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "NORTON-CUFFY",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "OBERT",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 2,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "OBRADOR",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Doig"
+    },
+    {
+      "nome": "ODENTHAL",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "OLIVERA",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Spinazzola"
+    },
+    {
+      "nome": "OSTIGARD",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 7,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "OYONO",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PALMA",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PAVLOVIC",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PEDERSEN",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Fortini"
+    },
+    {
+      "nome": "PEDRAZA",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "RAMON",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 7,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "RODRIGUEZ Ju.",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ROMAGNOLI",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "RRAHMANI",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SCALVINI",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SCHINGTIENNE",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SIEBERT",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SOLET",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SPENCE",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 11,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SPINAZZOLA",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Olivera"
+    },
+    {
+      "nome": "STONES",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SUTALO J.",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "TAVARES N.",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "TIAGO GABRIEL",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "TROILO",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VALDEPENAS",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VALENTI",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VALERI",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VALLE",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Kaiki"
+    },
+    {
+      "nome": "VASQUEZ J.",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VIERY",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VITIK",
+      "ruolo": "D",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VOJVODA",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "WALUKIEWICZ",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "WESLEY",
+      "ruolo": "D",
+      "cat": "Occ",
+      "max": 14,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ZAPPACOSTA",
+      "ruolo": "D",
+      "cat": "Scm",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Bellanova"
+    },
+    {
+      "nome": "ZE' PEDRO",
+      "ruolo": "D",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ZORTEA",
+      "ruolo": "D",
+      "cat": "Pun",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ADOPO",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ADZIC",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Thorsvedt"
+    },
+    {
+      "nome": "AKISANMIRO",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ALAJBEGOVIC",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ALMQVIST",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ATTA",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BAKOLA",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BALDANZI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 15,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "BARELLA",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BASIC",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BATURINA",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 40,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BERISHA",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BERNABE'",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "BERNARDESCHI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 15,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Odgaard, Piaz."
+    },
+    {
+      "nome": "BRESCIANINI",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BUSIO",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CACCIAMANI",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CALHANOGLU",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 65,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig., Piaz."
+    },
+    {
+      "nome": "CALO'",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig., Piaz."
+    },
+    {
+      "nome": "CAMBIAGHI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CANCELLIERI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 18,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CASADEI",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CHUKWUEZE",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "solo con Saelemakers"
+    },
+    {
+      "nome": "CICHELLA",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CISSE' A.",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "COLPANI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "CONCEICAO",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CRISTANTE",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DA CUNHA",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 7,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "DE BRUYNE",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 18,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig., Piaz."
+    },
+    {
+      "nome": "DIOUF",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "se coperti"
+    },
+    {
+      "nome": "DOMINGUEZ B.",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DOUGLAS LUIZ",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "EDERSON",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 13,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "EKKELENKAMP",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 13,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "EL AZZOUZI",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ELLERTSSON",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ELMAS",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "se coperti"
+    },
+    {
+      "nome": "FAGIOLI",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "FAZZINI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "FERGUSON",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "FINI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Zerbin"
+    },
+    {
+      "nome": "FITZ-JIM",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "FRATTESI",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 18,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "FRENDRUP",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GAETANO",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GRILLITSCH",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GUDMUNSSON",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 35,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig., Piaz."
+    },
+    {
+      "nome": "ILIC",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ISAKSEN",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Cancellieri"
+    },
+    {
+      "nome": "JASHARI",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "JONES C.",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KARLSTROM",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KEITA M.",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KIKE PEREZ",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KONE' M.",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 7,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KOOPMEINERS",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "L. COULIBALY",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LOBOTKA",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 2,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LOCATELLI",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LOFTUS-CHEEK",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MANDRAGORA",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "MASTANTUONO",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MATIC",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "McKENNIE",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 11,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "McTOMINAY",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 50,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MODRIC",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "MORA R.",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MOREIRA",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MORO",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "NGOM",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "NICOLUSSI-CAVIGLIA",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "NJIE",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ODGAARD",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 9,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "solo con Bernardeschi"
+    },
+    {
+      "nome": "ORDONEZ",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ORISTANIO",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ORSOLINI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig., Piaz."
+    },
+    {
+      "nome": "PASALIC",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 7,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PAZ N.",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 50,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "PERRONE",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 2,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PIEROTTI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 4,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "PIOTROWSKI",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PISILLI",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 2,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "POLITANO",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "PULISIC",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 35,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "RABIOT",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "RODRIGUEZ Je.",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 15,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ROMANO",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ROVELLA",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 2,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ROWE",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 12,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SAELEMAEKERS",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 6,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SAMARDZIC",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 28,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SCHMID",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SOHM",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SOW",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SUCIC",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "TAYLOR K.",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 8,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "THORSVEDT",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Adzic"
+    },
+    {
+      "nome": "THURAM K.",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "TOURE' I.",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "TRAORE Hj.",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "UNAI GOMEZ",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VERGARA",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 13,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "VLASIC",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 23,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig., Piaz."
+    },
+    {
+      "nome": "VOLPATO",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "WINKS",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ZACCAGNI",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig., Piaz."
+    },
+    {
+      "nome": "ZALEWSKI",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ZAMBO A.",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 3,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ZANIOLO",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "ZERBIN",
+      "ruolo": "C",
+      "cat": "Pun",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Fini"
+    },
+    {
+      "nome": "ZHEGROVA",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ZIELINSKI",
+      "ruolo": "C",
+      "cat": "Occ",
+      "max": 12,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ADAMS A.",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ADAMS C.",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BERARDI",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 65,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rischio Inf., Rig., Piaz."
+    },
+    {
+      "nome": "BOGA",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BONNY",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BOWIE",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 15,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CAMARDA",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "CASTRO",
+      "ruolo": "A",
+      "cat": "Occ",
+      "max": 50,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Malen (pref.)"
+    },
+    {
+      "nome": "COLOMBO",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "CUTRONE",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DAVIES K.",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 60,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rischio Inf., Rig."
+    },
+    {
+      "nome": "DE KETELAERE",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 50,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Piaz."
+    },
+    {
+      "nome": "DIA",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 40,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DIAO",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 25,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DOUVIKAS",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 70,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DOVBYK",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "DYBALA",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 70,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rischio Inf., Piaz."
+    },
+    {
+      "nome": "ELPHEGE",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ESPOSITO F. P.",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 60,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GEUBBELS",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "GIMENEZ",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Ramos G."
+    },
+    {
+      "nome": "HOJLUND",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 70,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KEAN",
+      "ruolo": "A",
+      "cat": "Occ",
+      "max": 120,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KEVIN CARLOS",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 25,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "KOLO MUANI",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 230,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "KRSTOVIC",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 65,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KVERNADZE",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LANG",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LAURIENTE'",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 40,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LEAO",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 50,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LONTANI",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LUCCA",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "con Hojlund"
+    },
+    {
+      "nome": "MALDINI",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MALEN",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 250,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "MARTINEZ L.",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 250,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MENDY P.",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MOTA",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "N'DRI",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "NERES",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "NOSLIN",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PELLEGRINO",
+      "ruolo": "A",
+      "cat": "Occ",
+      "max": 50,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PICCOLI",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "PINAMONTI",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "RAIMONDO",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 10,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "RAMOS G.",
+      "ruolo": "A",
+      "cat": "Occ",
+      "max": 65,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "RASPADORI",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "RATKOV",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SANTOS A.",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SCAMACCA",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 65,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "SIMEONE",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 45,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SOULE'",
+      "ruolo": "A",
+      "cat": "Occ",
+      "max": 30,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "STULIC",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "SULEMANA K.",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "THURAM M.",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 150,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "TOURE' E.B.",
+      "ruolo": "A",
+      "cat": "Pun",
+      "max": 40,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "VARELA G.",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 25,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "Rig."
+    },
+    {
+      "nome": "VITINHA",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "YEBOAH",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "YILDIZ",
+      "ruolo": "A",
+      "cat": "Occ",
+      "max": 100,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ZAPATA",
+      "ruolo": "A",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    }
+  ],
+  "extra": [],
+  "config": {
+    "budget_iniziale": 500,
+    "slot_ruoli": {
+      "P": 3,
+      "D": 8,
+      "C": 8,
+      "A": 6
+    }
+  }
+}
