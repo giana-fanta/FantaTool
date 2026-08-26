@@ -3,7 +3,7 @@ import json
 import math
 
 # Usa il nome corretto del file
-FILE_EXCEL = 'Fanta_2627 (2)_2.xlsx'
+FILE_EXCEL = 'Fanta_2627 (2).xlsx'
 
 def clean_nan(val, default=""):
     if isinstance(val, float) and math.isnan(val):
