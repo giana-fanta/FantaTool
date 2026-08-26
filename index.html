@@ -97,7 +97,7 @@
 </head>
 <body>
     <div id="app">
-        <div class="container" :class="{ 'app-blurred': locked }">
+        <div class="container" :class="{ 'app-blurred': locked || !accessGranted }">
         <div class="toolbar">
             <h1>Gestione Asta Live</h1>
             <div>
@@ -122,10 +122,6 @@
         <!-- CONTROL PANEL -->
         <div v-if="currentTab === 'Control_Panel'">
             <div class="dashboard-grid">
-                <div class="card">
-                    <h3>Budget Iniziale</h3>
-                    <div class="value">{{ config.budget_iniziale }}</div>
-                </div>
                 <div class="card">
                     <h3>Crediti Spesi</h3>
                     <div class="value" :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(creditiSpesiTotali) }}</div>
@@ -329,6 +325,19 @@
         </div>
         </div>
 
+        <!-- ACCESS GATE -->
+        <div v-if="!accessGranted" class="lock-overlay">
+            <div class="lock-box">
+                <h2>🔑 Accesso Riservato</h2>
+                <p v-if="!erroreAccesso">Inserisci la parola chiave per accedere all'app.</p>
+                <input type="password" v-model="inputAccesso" @keyup.enter="tentaAccesso"
+                       placeholder="Parola chiave" autofocus>
+                <div class="lock-error">{{ erroreAccesso }}</div>
+                <button class="btn btn-success" style="width:100%;" @click="tentaAccesso">Entra</button>
+                <p class="lock-hint">L'accesso resta memorizzato su questo browser: non verrà richiesto di nuovo qui.</p>
+            </div>
+        </div>
+
         <!-- LOCK SCREEN -->
         <div v-if="locked" class="lock-overlay">
             <div class="lock-box">
@@ -378,6 +387,42 @@
                 // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
                 const PESO_CATEGORIA = { Occ: 0.5, Pun: 0.35, Tit: 0.25, Scm: 0.15 }; // default (Sca e altro) = 0.05
 
+                async function sha256Hex(testo) {
+                    const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(testo));
+                    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+                }
+
+                // --- ACCESS GATE (parola chiave per l'utilizzo dell'app) ---
+                // Del tutto indipendente dal Lock qui sotto: serve solo a impedire l'uso della
+                // app a chi non conosce la parola chiave, nonostante il repository sia pubblico.
+                // L'hash SHA-256 della parola chiave è fisso nel codice (uguale per chiunque),
+                // non impostabile né modificabile dall'interfaccia. Non è una misura di sicurezza
+                // crittografica robusta (chiunque legga il codice sorgente può risalire alla parola
+                // chiave con un attacco a dizionario sull'hash): è solo un filtro contro accessi
+                // occasionali/accidentali. Una volta inserita correttamente, l'accesso resta
+                // memorizzato in questo browser e non verrà richiesto di nuovo.
+                const ACCESS_HASH = '567166b3f17d599b7dc9a2b5fa19fad2ecd3395aaa50ab984a1b12175fb0c815';
+                const accessGranted = ref(localStorage.getItem('fanta_access_ok') === '1');
+                const inputAccesso = ref('');
+                const erroreAccesso = ref('');
+
+                const tentaAccesso = async () => {
+                    if (!inputAccesso.value) {
+                        erroreAccesso.value = 'Inserisci la parola chiave.';
+                        return;
+                    }
+                    const hash = await sha256Hex(inputAccesso.value);
+                    if (hash === ACCESS_HASH) {
+                        accessGranted.value = true;
+                        localStorage.setItem('fanta_access_ok', '1');
+                        inputAccesso.value = '';
+                        erroreAccesso.value = '';
+                    } else {
+                        erroreAccesso.value = 'Parola chiave errata.';
+                        inputAccesso.value = '';
+                    }
+                };
+
                 // --- LOCK SCREEN (blocco schermo con password) ---
                 // La password NON è mai salvata in chiaro: si conserva solo il suo hash SHA-256
                 // in localStorage. Al primo blocco, se non esiste ancora un hash, viene chiesto di
@@ -389,11 +434,6 @@
                 const erroreSblocco = ref('');
                 const passwordHash = ref(localStorage.getItem('fanta_lock_hash') || null);
                 const passwordImpostata = computed(() => !!passwordHash.value);
-
-                async function sha256Hex(testo) {
-                    const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(testo));
-                    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-                }
 
                 const attivaLock = () => {
                     inputPassword.value = '';
@@ -862,7 +902,8 @@
                     onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo,
                     calcolaMaxD, onUpdateStato, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
-                    locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword
+                    locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
+                    accessGranted, inputAccesso, erroreAccesso, tentaAccesso
                 }
             }
         }).mount('#app')
