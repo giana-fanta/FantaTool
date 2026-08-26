@@ -59,11 +59,18 @@
         .lock-hint { font-size: 12px; color: #adb5bd; margin-top: 15px; }
         .btn-dark { background: #343a40; }
         .note { font-size: 12px; color: #6c757d; margin-top: -10px; margin-bottom: 15px; }
-        .filtri-bar { display: flex; gap: 12px; margin-bottom: 15px; flex-wrap: wrap; align-items: end; }
+        .filtri-bar { display: flex; gap: 18px; margin-bottom: 15px; flex-wrap: wrap; align-items: start; }
         .filtri-bar .campo { display: flex; flex-direction: column; }
         .filtri-bar label { font-size: 12px; color: #6c757d; margin-bottom: 4px; }
         .filtri-bar .campo-search { flex: 2; min-width: 200px; }
-        .filtri-bar .campo select, .filtri-bar .campo input { min-width: 150px; }
+        .filtri-bar .campo-search input { margin-top: 18px; }
+        .filtri-bar .campo select, .filtri-bar .campo input[type="text"] { min-width: 150px; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+        .checkbox-group label { font-size: 13px; font-weight: normal; color: #333; display: flex; align-items: center; gap: 4px; margin: 0; white-space: nowrap; }
+        .checkbox-group input[type="checkbox"] { width: auto; margin: 0; }
+        .link-btn { background: none; border: none; color: var(--primary); font-size: 11px; cursor: pointer; padding: 0; text-decoration: underline; }
+        th.th-ordinabile { cursor: pointer; user-select: none; }
+        th.th-ordinabile:hover { background: #e9ecef; }
         .btn-secondary { background: #6c757d; }
         .btn-outline { background: white; color: #6c757d; border: 1px solid #ccc; }
     </style>
@@ -191,36 +198,31 @@
                     <input type="text" v-model="filtri.search" placeholder="Cerca giocatore...">
                 </div>
                 <div class="campo">
-                    <label>Filtra per CAT</label>
-                    <select v-model="filtri.cat">
-                        <option value="">Tutte</option>
-                        <option v-for="c in categorie" :key="c" :value="c">{{ c }}</option>
-                    </select>
+                    <label>Filtra per CAT <button class="link-btn" @click="filtri.cat = [...categorie]">Tutte</button> · <button class="link-btn" @click="filtri.cat = []">Nessuna</button></label>
+                    <div class="checkbox-group">
+                        <label v-for="c in categorie" :key="c"><input type="checkbox" :value="c" v-model="filtri.cat"> {{ c }}</label>
+                    </div>
                 </div>
                 <div class="campo">
-                    <label>Filtra per STATO</label>
-                    <select v-model="filtri.stato">
-                        <option value="">Tutti</option>
-                        <option value="L">Liberi (L)</option>
-                        <option value="M">Mio (M)</option>
-                        <option value="A">Altri (A)</option>
-                    </select>
+                    <label>Filtra per STATO <button class="link-btn" @click="filtri.stato = ['L','M','A']">Tutti</button> · <button class="link-btn" @click="filtri.stato = []">Nessuno</button></label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" value="L" v-model="filtri.stato"> Liberi (L)</label>
+                        <label><input type="checkbox" value="M" v-model="filtri.stato"> Mio (M)</label>
+                        <label><input type="checkbox" value="A" v-model="filtri.stato"> Altri (A)</label>
+                    </div>
                 </div>
-                <div class="campo">
-                    <button class="btn btn-secondary" @click="toggleOrdinamento">{{ labelOrdinamento }}</button>
-                </div>
-                <div class="campo">
-                    <button class="btn btn-outline" @click="resetFiltri">Reset filtri</button>
+                <div class="campo" style="justify-content:end;">
+                    <button class="btn btn-outline" @click="resetFiltri">Reset filtri e ordinamento</button>
                 </div>
             </div>
             <table>
                 <tr>
-                    <th style="width: 25%">NOME</th>
+                    <th style="width: 25%" class="th-ordinabile" @click="cambiaOrdinamento('nome')">NOME{{ iconaOrdinamento('nome') }}</th>
                     <th style="width: 10%">CAT</th>
-                    <th style="width: 10%">MAX</th>
-                    <th style="width: 15%">MAX_D</th>
+                    <th style="width: 10%" class="th-ordinabile" @click="cambiaOrdinamento('max')">MAX{{ iconaOrdinamento('max') }}</th>
+                    <th style="width: 15%" class="th-ordinabile" @click="cambiaOrdinamento('max_d')">MAX_D{{ iconaOrdinamento('max_d') }}</th>
                     <th style="width: 15%">STATO (L/M/A)</th>
-                    <th style="width: 15%">COSTO REALE</th>
+                    <th style="width: 15%" class="th-ordinabile" @click="cambiaOrdinamento('costo_reale')">COSTO REALE{{ iconaOrdinamento('costo_reale') }}</th>
                     <th style="width: 10%">NOTE</th>
                 </tr>
                 <tr v-for="g in giocatoriFiltered" :key="g.nome" :class="'stato-' + g.stato">
@@ -593,33 +595,38 @@
 
                 const calcolaMaxD = (g) => g.stato !== 'L' ? '-' : calcolaMaxDNumerico(g);
 
-                // Valore usato per l'ordinamento "per prezzo": MAX_D per i liberi, costo reale per i
-                // giocatori "Mio", MAX come riferimento indicativo per quelli "Altri" (costo reale ignoto).
-                const prezzoOrdinamento = (g) => {
-                    if (g.stato === 'M') return g.costo_reale || 0;
-                    if (g.stato === 'A') return g.max;
-                    return calcolaMaxDNumerico(g);
-                };
-
                 // --- RICERCA, FILTRI E ORDINAMENTO ---
 
                 const categorie = ['Occ', 'Pun', 'Tit', 'Scm', 'Sca'];
-                const filtri = ref({ search: '', cat: '', stato: '', ordinaPrezzo: null }); // ordinaPrezzo: null | 'asc' | 'desc'
+                const filtri = ref({ search: '', cat: [...categorie], stato: ['L', 'M', 'A'] });
+                const ordinamento = ref({ colonna: 'nome', direzione: 'asc' }); // colonna: nome | max | max_d | costo_reale
 
-                const toggleOrdinamento = () => {
-                    if (filtri.value.ordinaPrezzo === null) filtri.value.ordinaPrezzo = 'desc';
-                    else if (filtri.value.ordinaPrezzo === 'desc') filtri.value.ordinaPrezzo = 'asc';
-                    else filtri.value.ordinaPrezzo = null;
+                const cambiaOrdinamento = (colonna) => {
+                    if (ordinamento.value.colonna === colonna) {
+                        ordinamento.value.direzione = ordinamento.value.direzione === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        ordinamento.value.colonna = colonna;
+                        ordinamento.value.direzione = 'asc';
+                    }
                 };
 
-                const labelOrdinamento = computed(() => {
-                    if (filtri.value.ordinaPrezzo === 'desc') return '↓ Prezzo (alto → basso)';
-                    if (filtri.value.ordinaPrezzo === 'asc') return '↑ Prezzo (basso → alto)';
-                    return 'A-Z Alfabetico';
-                });
+                const iconaOrdinamento = (colonna) => {
+                    if (ordinamento.value.colonna !== colonna) return '';
+                    return ordinamento.value.direzione === 'asc' ? ' ▲' : ' ▼';
+                };
+
+                // Valore numerico/testuale di un giocatore per la colonna su cui si sta ordinando
+                const valoreOrdinamento = (g, colonna) => {
+                    if (colonna === 'nome') return g.nome.toLowerCase();
+                    if (colonna === 'max') return g.max;
+                    if (colonna === 'max_d') return calcolaMaxDNumerico(g); // valore sempre numerico, anche per M/A
+                    if (colonna === 'costo_reale') return g.costo_reale || 0;
+                    return 0;
+                };
 
                 const resetFiltri = () => {
-                    filtri.value = { search: '', cat: '', stato: '', ordinaPrezzo: null };
+                    filtri.value = { search: '', cat: [...categorie], stato: ['L', 'M', 'A'] };
+                    ordinamento.value = { colonna: 'nome', direzione: 'asc' };
                 };
 
                 // --- UI INTERACTIONS ---
@@ -629,17 +636,18 @@
 
                     const search = filtri.value.search.trim().toLowerCase();
                     if (search) list = list.filter(g => g.nome.toLowerCase().includes(search));
-                    if (filtri.value.cat) list = list.filter(g => g.cat === filtri.value.cat);
-                    if (filtri.value.stato) list = list.filter(g => g.stato === filtri.value.stato);
+                    list = list.filter(g => filtri.value.cat.includes(g.cat));
+                    list = list.filter(g => filtri.value.stato.includes(g.stato));
 
-                    list = [...list];
-                    if (filtri.value.ordinaPrezzo === 'asc') {
-                        list.sort((a, b) => prezzoOrdinamento(a) - prezzoOrdinamento(b));
-                    } else if (filtri.value.ordinaPrezzo === 'desc') {
-                        list.sort((a, b) => prezzoOrdinamento(b) - prezzoOrdinamento(a));
-                    } else {
-                        list.sort((a, b) => a.nome.localeCompare(b.nome));
-                    }
+                    const { colonna, direzione } = ordinamento.value;
+                    list = [...list].sort((a, b) => {
+                        const va = valoreOrdinamento(a, colonna);
+                        const vb = valoreOrdinamento(b, colonna);
+                        let cmp;
+                        if (typeof va === 'string') cmp = va.localeCompare(vb);
+                        else cmp = va - vb;
+                        return direzione === 'asc' ? cmp : -cmp;
+                    });
                     return list;
                 });
 
@@ -674,7 +682,7 @@
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     calcolaMaxD, onUpdateStato, salvaStato, esportaDati, resetDati, round2, formatPct,
-                    filtri, categorie, toggleOrdinamento, labelOrdinamento, resetFiltri,
+                    filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword
                 }
             }
