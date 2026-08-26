@@ -56,6 +56,15 @@
         .card.card-negative { background: #3a262a; border-color: #5a3438; }
         .card.card-negative .value { color: var(--danger); }
 
+        /* Grafici a torta - composizione residua per ruolo */
+        .pie-charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .pie-chart-card { padding: 15px; border-radius: 8px; background: var(--surface-alt); border: 1px solid var(--border); text-align: center; }
+        .pie-chart-card h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--text-muted); }
+        .pie-chart { width: 110px; height: 110px; border-radius: 50%; margin: 0 auto 10px auto; border: 1px solid var(--border); }
+        .pie-legend { text-align: left; font-size: 12px; }
+        .pie-legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+        .pie-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
         /* Dati sensibili nascosti */
         .dato-nascosto { filter: blur(6px); user-select: none; }
 
@@ -153,6 +162,12 @@
                     <h3>Prezzo Medio Reale</h3>
                     <div class="value">{{ round2(prezzoMedioReale) }}</div>
                 </div>
+                <div class="card" :class="{ 'card-positive': mediaCreditiAltri > 0 && mediaCreditiMiei < mediaCreditiAltri, 'card-negative': mediaCreditiAltri > 0 && mediaCreditiMiei > mediaCreditiAltri }">
+                    <h3>Media Spesa: Io vs Altri</h3>
+                    <div class="value" :class="{ 'dato-nascosto': datiSensibiliNascosti }">
+                        {{ round2(mediaCreditiMiei) }} vs {{ mediaCreditiAltri > 0 ? round2(mediaCreditiAltri) : 'n/d' }}
+                    </div>
+                </div>
             </div>
 
             <h2>Situazione Reparti</h2>
@@ -180,6 +195,20 @@
                     </td>
                 </tr>
             </table>
+            </div>
+
+            <h2>Composizione Residua per Ruolo (giocatori Liberi)</h2>
+            <div class="pie-charts-grid">
+                <div class="pie-chart-card" v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
+                    <h3>{{ ruolo }} — {{ composizioneLiberiCat(ruolo).tot }} liberi</h3>
+                    <div class="pie-chart" :style="{ background: conicGradientCat(ruolo) }"></div>
+                    <div class="pie-legend">
+                        <div class="pie-legend-item" v-for="seg in composizioneLiberiCat(ruolo).segmenti.filter(s => s.count > 0)" :key="seg.cat">
+                            <span class="pie-legend-dot" :style="{ background: seg.colore }"></span>
+                            <span>{{ seg.cat }}: {{ seg.count }} ({{ formatPct(seg.pct) }})</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <h2>Composizione CAT della Rosa (giocatori "Mio")</h2>
@@ -253,7 +282,7 @@
                     </td>
                     <td>
                         <input type="number" min="0" v-model.number="g.costo_reale" 
-                               :disabled="g.stato === 'L' || g.stato === 'A'" 
+                               :disabled="g.stato === 'L'" 
                                @input="salvaStato">
                     </td>
                     <td style="font-size: 11px;">{{ g.note }}</td>
@@ -591,6 +620,20 @@
                     return comprati.reduce((s, g) => s + (g.costo_reale || 0), 0) / comprati.length;
                 });
 
+                // Media crediti spesi dall'utente (Mio) confrontata con la media di quanto spendono
+                // gli "Altri" (calcolata solo sui giocatori "Altri" per cui è stato inserito un costo,
+                // essendo un dato facoltativo che l'utente compila quando lo conosce).
+                const mediaCreditiMiei = computed(() => {
+                    const miei = giocatori.value.filter(g => g.stato === 'M');
+                    if (!miei.length) return 0;
+                    return miei.reduce((s, g) => s + (g.costo_reale || 0), 0) / miei.length;
+                });
+                const mediaCreditiAltri = computed(() => {
+                    const altri = giocatori.value.filter(g => g.stato === 'A' && g.costo_reale > 0);
+                    if (!altri.length) return 0;
+                    return altri.reduce((s, g) => s + (g.costo_reale || 0), 0) / altri.length;
+                });
+
                 // Indice di inflazione GLOBALE usato dentro MAX_D: MAX(0.1, Crediti_Residui / Costo_Atteso_Rimanente)
                 const inflazioneGlobale = computed(() => {
                     const b10 = costoAttesoRimanente.value;
@@ -614,6 +657,35 @@
                     // poiché non hanno una categoria propria ma occupano comunque uno slot di rosa.
                     const scm = countCatStato(ruolo, 'Scm', 'M') + countCatStato(ruolo, 'Sca', 'M') + (extra.value[ruolo]?.slot || 0);
                     return { op, tit, scm, tot: op + tit + scm };
+                };
+
+                // Colori delle categorie per i grafici a torta (coerenti con la palette dell'app)
+                const CATEGORIE_COLORI = { Occ: 'var(--primary)', Pun: 'var(--success)', Tit: 'var(--squadra)', Scm: 'var(--danger)', Sca: 'var(--text-muted)' };
+                const CATEGORIE_PIE = ['Occ', 'Pun', 'Tit', 'Scm', 'Sca'];
+
+                // Composizione per CAT dei giocatori ancora liberi (stato 'L') di un ruolo,
+                // usata per il grafico a torta "Composizione Residua per Ruolo".
+                const composizioneLiberiCat = (ruolo) => {
+                    const liberi = giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'L');
+                    const tot = liberi.length;
+                    const segmenti = CATEGORIE_PIE.map(cat => {
+                        const count = liberi.filter(g => g.cat === cat).length;
+                        return { cat, count, pct: tot ? count / tot : 0, colore: CATEGORIE_COLORI[cat] };
+                    });
+                    return { tot, segmenti };
+                };
+
+                // Genera il conic-gradient CSS per il grafico a torta di un ruolo
+                const conicGradientCat = (ruolo) => {
+                    const { tot, segmenti } = composizioneLiberiCat(ruolo);
+                    if (!tot) return 'var(--surface)';
+                    let acc = 0;
+                    const parti = segmenti.filter(s => s.count > 0).map(s => {
+                        const inizio = acc;
+                        acc += s.pct * 100;
+                        return `${s.colore} ${inizio}% ${acc}%`;
+                    });
+                    return `conic-gradient(${parti.join(', ')})`;
                 };
 
                 // Budget/Residuo per ruolo (colonna "Residui" del Control Panel: budget target - speso)
@@ -723,7 +795,7 @@
                 });
 
                 const onUpdateStato = (g) => {
-                    if (g.stato !== 'M') g.costo_reale = 0; // Azzera costo se lo svincoli o va ad altri
+                    if (g.stato === 'L') g.costo_reale = 0; // Azzera costo solo se il giocatore torna libero
                     salvaStato();
                 };
 
@@ -785,6 +857,8 @@
                     creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
+                    mediaCreditiMiei, mediaCreditiAltri,
+                    composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo,
                     calcolaMaxD, onUpdateStato, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
