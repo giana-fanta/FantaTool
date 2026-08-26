@@ -47,6 +47,17 @@
         .card.card-positive .value { color: var(--success); }
         .card.card-negative { background: #fdeaea; border-color: #f3c2c2; }
         .card.card-negative .value { color: var(--danger); }
+
+        /* Lock Screen */
+        .app-blurred { filter: blur(14px) brightness(0.6); pointer-events: none; user-select: none; }
+        .lock-overlay { position: fixed; inset: 0; background: rgba(20,20,20,0.65); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .lock-box { background: white; padding: 30px; border-radius: 12px; width: 320px; max-width: 90vw; text-align: center; box-shadow: 0 15px 50px rgba(0,0,0,0.4); }
+        .lock-box h2 { margin-top: 0; color: #2c3e50; }
+        .lock-box p { color: #6c757d; font-size: 14px; }
+        .lock-box input { margin: 15px 0 5px 0; text-align: center; font-size: 16px; }
+        .lock-error { color: var(--danger); font-size: 13px; margin-bottom: 12px; min-height: 16px; }
+        .lock-hint { font-size: 12px; color: #adb5bd; margin-top: 15px; }
+        .btn-dark { background: #343a40; }
         .note { font-size: 12px; color: #6c757d; margin-top: -10px; margin-bottom: 15px; }
         .filtri-bar { display: flex; gap: 12px; margin-bottom: 15px; flex-wrap: wrap; align-items: end; }
         .filtri-bar .campo { display: flex; flex-direction: column; }
@@ -58,11 +69,14 @@
     </style>
 </head>
 <body>
-    <div id="app" class="container">
+    <div id="app">
+        <div class="container" :class="{ 'app-blurred': locked }">
         <div class="toolbar">
             <h1>Gestione Asta Live</h1>
             <div>
-                <button class="btn btn-success" @click="esportaDati">↓ Esporta Backup</button>
+                <button class="btn btn-dark" @click="attivaLock">🔒 Lock</button>
+                <button class="btn btn-outline" v-if="passwordImpostata" @click="cambiaPassword" style="margin-left:10px;">Cambia Password</button>
+                <button class="btn btn-success" @click="esportaDati" style="margin-left:10px;">↓ Esporta Backup</button>
                 <button class="btn btn-danger" @click="resetDati" style="margin-left:10px;">Reset Totale</button>
             </div>
         </div>
@@ -246,10 +260,27 @@
                 </tr>
             </table>
         </div>
+        </div>
+
+        <!-- LOCK SCREEN -->
+        <div v-if="locked" class="lock-overlay">
+            <div class="lock-box">
+                <h2>🔒 Schermo Bloccato</h2>
+                <p v-if="!passwordImpostata">Nessuna password impostata: scegline una per bloccare lo schermo.</p>
+                <p v-else-if="!erroreSblocco">Inserisci la password per sbloccare.</p>
+                <input type="password" v-model="inputPassword" @keyup.enter="tentaSblocco"
+                       :placeholder="passwordImpostata ? 'Password' : 'Scegli una password (min. 4 caratteri)'" autofocus>
+                <div class="lock-error">{{ erroreSblocco }}</div>
+                <button class="btn btn-success" style="width:100%;" @click="tentaSblocco">
+                    {{ passwordImpostata ? 'Sblocca' : 'Imposta password e blocca' }}
+                </button>
+                <p class="lock-hint">La password non è salvata in chiaro: viene conservata solo come hash (SHA-256) nel browser.</p>
+            </div>
+        </div>
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted } = Vue
+        const { createApp, ref, computed, onMounted, watch } = Vue
 
         createApp({
             setup() {
@@ -279,6 +310,70 @@
                 // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
                 const PESO_CATEGORIA = { Occ: 0.5, Pun: 0.35, Tit: 0.25, Scm: 0.15 }; // default (Sca e altro) = 0.05
 
+                // --- LOCK SCREEN (blocco schermo con password) ---
+                // La password NON è mai salvata in chiaro: si conserva solo il suo hash SHA-256
+                // in localStorage. Al primo blocco, se non esiste ancora un hash, viene chiesto di
+                // sceglierne una. Questa è una protezione "a schermo" contro sguardi indiscreti,
+                // non una misura di sicurezza crittografica robusta (i dati restano comunque nel
+                // browser e chiunque abbia accesso agli strumenti sviluppatore potrebbe aggirarla).
+                const locked = ref(false);
+                const inputPassword = ref('');
+                const erroreSblocco = ref('');
+                const passwordHash = ref(localStorage.getItem('fanta_lock_hash') || null);
+                const passwordImpostata = computed(() => !!passwordHash.value);
+
+                async function sha256Hex(testo) {
+                    const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(testo));
+                    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+                }
+
+                const attivaLock = () => {
+                    inputPassword.value = '';
+                    erroreSblocco.value = '';
+                    locked.value = true;
+                };
+
+                const tentaSblocco = async () => {
+                    if (!inputPassword.value) {
+                        erroreSblocco.value = 'Inserisci una password.';
+                        return;
+                    }
+                    if (!passwordImpostata.value) {
+                        // Prima impostazione della password: la salviamo (hashata) e lo schermo
+                        // resta bloccato, ora richiederà quella password per essere sbloccato.
+                        if (inputPassword.value.length < 4) {
+                            erroreSblocco.value = 'La password deve avere almeno 4 caratteri.';
+                            return;
+                        }
+                        const hash = await sha256Hex(inputPassword.value);
+                        localStorage.setItem('fanta_lock_hash', hash);
+                        passwordHash.value = hash;
+                        inputPassword.value = '';
+                        erroreSblocco.value = '';
+                        return;
+                    }
+                    const hash = await sha256Hex(inputPassword.value);
+                    if (hash === passwordHash.value) {
+                        locked.value = false;
+                        inputPassword.value = '';
+                        erroreSblocco.value = '';
+                    } else {
+                        erroreSblocco.value = 'Password errata.';
+                        inputPassword.value = '';
+                    }
+                };
+
+                const cambiaPassword = () => {
+                    if (confirm('Vuoi reimpostare la password di blocco? Al prossimo blocco te ne verrà chiesta una nuova.')) {
+                        localStorage.removeItem('fanta_lock_hash');
+                        passwordHash.value = null;
+                    }
+                };
+
+                // Mantiene lo stato di blocco tra un refresh e l'altro della pagina (solo per la
+                // sessione corrente della scheda), così un refresh accidentale non "sblocca" tutto.
+                watch(locked, (v) => sessionStorage.setItem('fanta_locked', v ? '1' : '0'));
+
                 // Normalizza il vecchio formato "extra" (array con descrizione) verso il nuovo,
                 // così un backup/localStorage precedente resta leggibile.
                 function normalizzaExtra(valore) {
@@ -301,6 +396,10 @@
 
                 // Inizializzazione Dati (da LocalStorage o fetch JSON)
                 onMounted(async () => {
+                    if (passwordImpostata.value && sessionStorage.getItem('fanta_locked') === '1') {
+                        locked.value = true;
+                    }
+
                     const dbSalvato = localStorage.getItem('fanta_db');
                     if (dbSalvato) {
                         const parsed = JSON.parse(dbSalvato);
@@ -575,7 +674,8 @@
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     calcolaMaxD, onUpdateStato, salvaStato, esportaDati, resetDati, round2, formatPct,
-                    filtri, categorie, toggleOrdinamento, labelOrdinamento, resetFiltri
+                    filtri, categorie, toggleOrdinamento, labelOrdinamento, resetFiltri,
+                    locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword
                 }
             }
         }).mount('#app')
