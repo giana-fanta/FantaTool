@@ -7,7 +7,7 @@
     <!-- Importazione Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        :root { --bg: #181b22; --primary: #6d93e0; --success: #4caf82; --danger: #e0808f; --surface: #21242c; --surface-alt: #2a2e38; --border: #3a3f4c; --text-muted: #8f97a8; }
+        :root { --bg: #181b22; --primary: #6d93e0; --success: #4caf82; --danger: #e0808f; --surface: #21242c; --surface-alt: #2a2e38; --border: #3a3f4c; --text-muted: #8f97a8; --squadra: #d9a441; --squadra-bg: #3a331f; --squadra-text: #e8c97a; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #ced3dd; }
         .container { max-width: 1300px; margin: 0 auto; background: var(--surface); padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.35); }
         h1 { margin-top: 0; color: #e6e9f0; }
@@ -18,6 +18,14 @@
         .tab { padding: 10px 20px; cursor: pointer; border-radius: 6px; background: var(--surface-alt); font-weight: bold; white-space: nowrap; transition: 0.2s;}
         .tab:hover { background: #343a46; }
         .tab.active { background: var(--primary); color: #14171c; }
+        .tab-squadra { margin-left: auto; background: var(--squadra-bg); color: var(--squadra-text); }
+        .tab-squadra:hover { background: #463d24; }
+        .tab-squadra.active { background: var(--squadra); color: #201a0c; }
+
+        /* Pannello Mia Squadra */
+        .squadra-ruolo { margin-bottom: 22px; }
+        .squadra-ruolo-titolo { color: var(--squadra); margin: 0 0 8px 0; font-size: 16px; }
+        .squadra-panel h2 { color: var(--squadra); }
         
         /* Tabelle */
         .table-container { overflow-x: auto; }
@@ -96,7 +104,7 @@
 
         <div class="tabs">
             <div v-for="tab in tabs" :key="tab" 
-                 :class="['tab', { active: currentTab === tab }]" 
+                 :class="['tab', { active: currentTab === tab, 'tab-squadra': tab === 'Mia_Squadra' }]" 
                  @click="currentTab = tab">
                 {{ tab.replace('_', ' ') }}
             </div>
@@ -263,10 +271,32 @@
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
                     <td><strong>{{ ruolo }}</strong></td>
-                    <td><input type="number" min="0" v-model.number="extra[ruolo].slot" @input="salvaStato"></td>
+                    <td><input type="number" min="0" v-model.number="extra[ruolo].slot" @input="onSlotExtraChange(ruolo)"></td>
                     <td><input type="number" min="0" v-model.number="extra[ruolo].crediti" @input="salvaStato"></td>
                 </tr>
             </table>
+        </div>
+
+        <!-- MIA SQUADRA -->
+        <div v-if="currentTab === 'Mia_Squadra'" class="table-container squadra-panel">
+            <h2>Mia Squadra</h2>
+            <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo" class="squadra-ruolo">
+                <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
+                <table>
+                    <tr><th>Nome</th><th>Costo Reale</th></tr>
+                    <tr v-for="g in giocatoriMieiPerRuolo(ruolo)" :key="g.nome">
+                        <td>{{ g.nome }}</td>
+                        <td>{{ g.costo_reale || 0 }}</td>
+                    </tr>
+                    <tr v-for="(d, idx) in extraDettagli(ruolo)" :key="'extra-' + ruolo + '-' + idx">
+                        <td><input type="text" v-model="d.nome" placeholder="Nome (extra)" @input="salvaStato"></td>
+                        <td><input type="number" min="0" v-model.number="d.costo" @input="salvaStato"></td>
+                    </tr>
+                    <tr v-if="!giocatoriMieiPerRuolo(ruolo).length && !extraDettagli(ruolo).length">
+                        <td colspan="2" style="text-align:center; color: var(--text-muted);">Nessun giocatore</td>
+                    </tr>
+                </table>
+            </div>
         </div>
         </div>
 
@@ -292,17 +322,17 @@
 
         createApp({
             setup() {
-                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra'];
+                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra'];
                 const currentTab = ref('Control_Panel');
                 const datiSensibiliNascosti = ref(false);
                 
                 // Stato Reattivo
                 const giocatori = ref([]);
                 const extra = ref({
-                    P: { slot: 0, crediti: 0 },
-                    D: { slot: 0, crediti: 0 },
-                    C: { slot: 0, crediti: 0 },
-                    A: { slot: 0, crediti: 0 }
+                    P: { slot: 0, crediti: 0, dettagli: [] },
+                    D: { slot: 0, crediti: 0, dettagli: [] },
+                    C: { slot: 0, crediti: 0, dettagli: [] },
+                    A: { slot: 0, crediti: 0, dettagli: [] }
                 });
                 const config = ref({ budget_iniziale: 500, slot_ruoli: { P:3, D:8, C:8, A:6 } });
 
@@ -386,7 +416,7 @@
                 // Normalizza il vecchio formato "extra" (array con descrizione) verso il nuovo,
                 // così un backup/localStorage precedente resta leggibile.
                 function normalizzaExtra(valore) {
-                    const base = { P: { slot: 0, crediti: 0 }, D: { slot: 0, crediti: 0 }, C: { slot: 0, crediti: 0 }, A: { slot: 0, crediti: 0 } };
+                    const base = { P: { slot: 0, crediti: 0, dettagli: [] }, D: { slot: 0, crediti: 0, dettagli: [] }, C: { slot: 0, crediti: 0, dettagli: [] }, A: { slot: 0, crediti: 0, dettagli: [] } };
                     if (!valore) return base;
                     if (Array.isArray(valore)) {
                         valore.forEach(ex => {
@@ -395,10 +425,25 @@
                                 base[ex.ruolo].crediti += (ex.costo || 0);
                             }
                         });
-                        return base;
+                    } else {
+                        ['P','D','C','A'].forEach(r => {
+                            if (valore[r]) {
+                                base[r] = {
+                                    slot: valore[r].slot || 0,
+                                    crediti: valore[r].crediti || 0,
+                                    dettagli: Array.isArray(valore[r].dettagli)
+                                        ? valore[r].dettagli.map(d => ({ nome: d.nome || '', costo: d.costo || 0 }))
+                                        : []
+                                };
+                            }
+                        });
                     }
+                    // Il numero di righe "dettagli" (nome/costo compilabili in Mia Squadra) segue
+                    // sempre il numero di slot extra impostato nella scheda Extra.
                     ['P','D','C','A'].forEach(r => {
-                        if (valore[r]) base[r] = { slot: valore[r].slot || 0, crediti: valore[r].crediti || 0 };
+                        const n = base[r].slot || 0;
+                        while (base[r].dettagli.length < n) base[r].dettagli.push({ nome: '', costo: 0 });
+                        while (base[r].dettagli.length > n) base[r].dettagli.pop();
                     });
                     return base;
                 }
@@ -577,6 +622,25 @@
                     return m.budgetTarget - m.spesaReale;
                 };
 
+                // Tiene allineato l'array "dettagli" (nome/costo compilabili in Mia Squadra) al
+                // numero di slot extra impostato nella scheda Extra: aggiunge o rimuove righe vuote.
+                const onSlotExtraChange = (ruolo) => {
+                    const item = extra.value[ruolo];
+                    if (!item.dettagli) item.dettagli = [];
+                    const n = item.slot || 0;
+                    while (item.dettagli.length < n) item.dettagli.push({ nome: '', costo: 0 });
+                    while (item.dettagli.length > n) item.dettagli.pop();
+                    salvaStato();
+                };
+
+                const extraDettagli = (ruolo) => extra.value[ruolo].dettagli || [];
+
+                // Giocatori "Mio" di un ruolo, ordinati per nome, per la scheda Mia Squadra.
+                const giocatoriMieiPerRuolo = (ruolo) =>
+                    giocatori.value
+                        .filter(g => g.ruolo === ruolo && g.stato === 'M')
+                        .sort((a, b) => a.nome.localeCompare(b.nome));
+
                 // Motore Ricalcolo MAX_D — replica esatta della formula presente in ogni foglio P/D/C/A.
                 // Restituisce sempre un numero (anche per uno "L" ipotetico), usato sia per la colonna
                 // MAX_D sia come base per l'ordinamento per prezzo.
@@ -721,6 +785,7 @@
                     creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
+                    onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo,
                     calcolaMaxD, onUpdateStato, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword
