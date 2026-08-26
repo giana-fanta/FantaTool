@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asta Live - Fanta 2627</title>
+    <!-- Importazione Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root { --bg: #f8f9fa; --primary: #0d6efd; --success: #198754; --danger: #dc3545; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; color: #2c3e50; }
+        
+        /* Navigazione Schede */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; overflow-x: auto; }
+        .tab { padding: 10px 20px; cursor: pointer; border-radius: 6px; background: #e9ecef; font-weight: bold; white-space: nowrap; transition: 0.2s;}
+        .tab:hover { background: #dee2e6; }
+        .tab.active { background: var(--primary); color: white; }
+        
+        /* Tabelle */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
+        th { background: #f8f9fa; position: sticky; top: 0; }
+        tr.stato-M { background-color: #ffe6e6; color: #a00; } /* Mio */
+        tr.stato-A { background-color: #e6f2ff; color: #005cc5; } /* Altri */
+        
+        /* Inputs & Buttons */
+        select, input[type="number"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        input[disabled] { background: #e9ecef; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; }
+        .btn-danger { background: var(--danger); }
+        .btn-success { background: var(--success); }
+        .toolbar { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        
+        /* Dashboard Cards */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .card { padding: 15px; border-radius: 8px; background: #f8f9fa; border: 1px solid #dee2e6; text-align: center; }
+        .card h3 { margin: 0 0 10px 0; font-size: 16px; color: #6c757d; }
+        .card .value { font-size: 24px; font-weight: bold; color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div id="app" class="container">
+        <div class="toolbar">
+            <h1>Gestione Asta Live</h1>
+            <div>
+                <button class="btn btn-success" @click="esportaDati">↓ Esporta Backup</button>
+                <button class="btn btn-danger" @click="resetDati" style="margin-left:10px;">Reset Totale</button>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div v-for="tab in tabs" :key="tab" 
+                 :class="['tab', { active: currentTab === tab }]" 
+                 @click="currentTab = tab">
+                {{ tab.replace('_', ' ') }}
+            </div>
+        </div>
+
+        <!-- CONTROL PANEL -->
+        <div v-if="currentTab === 'Control_Panel'">
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3>Budget Iniziale</h3>
+                    <div class="value">{{ config.budget_iniziale }}</div>
+                </div>
+                <div class="card">
+                    <h3>Crediti Spesi (Giocatori + Extra)</h3>
+                    <div class="value">{{ creditiSpesiTotali }}</div>
+                </div>
+                <div class="card">
+                    <h3>Budget Residuo</h3>
+                    <div class="value">{{ budgetResiduo }}</div>
+                </div>
+                <div class="card">
+                    <h3>Slot Liberi Totali</h3>
+                    <div class="value">{{ slotLiberiTotali }} / 25</div>
+                </div>
+            </div>
+
+            <h2>Situazione Reparti</h2>
+            <table>
+                <tr>
+                    <th>Ruolo</th><th>Slot Tot</th><th>Liberi</th><th>Spesi</th><th>Budget MAX per ruolo (Stimato)</th>
+                </tr>
+                <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
+                    <td>{{ ruolo }}</td>
+                    <td>{{ config.slot_ruoli[ruolo] }}</td>
+                    <td>{{ config.slot_ruoli[ruolo] - giocatoriComprati(ruolo) }}</td>
+                    <td>{{ spesaPerRuolo(ruolo) }}</td>
+                    <td>{{ budgetAssegnatoPerRuolo(ruolo) }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- LISTE GIOCATORI (P, D, C, A) -->
+        <div v-if="['P', 'D', 'C', 'A'].includes(currentTab)" class="table-container">
+            <table>
+                <tr>
+                    <th style="width: 25%">NOME</th>
+                    <th style="width: 10%">CAT</th>
+                    <th style="width: 10%">MAX</th>
+                    <th style="width: 15%">MAX_D</th>
+                    <th style="width: 15%">STATO (L/M/A)</th>
+                    <th style="width: 15%">COSTO REALE</th>
+                    <th style="width: 10%">NOTE</th>
+                </tr>
+                <tr v-for="g in giocatoriFiltered" :key="g.nome" :class="'stato-' + g.stato">
+                    <td><strong>{{ g.nome }}</strong></td>
+                    <td>{{ g.cat }}</td>
+                    <td>{{ g.max }}</td>
+                    <td><strong>{{ calcolaMaxD(g) }}</strong></td>
+                    <td>
+                        <select v-model="g.stato" @change="onUpdateStato(g)">
+                            <option value="L">Liberi (L)</option>
+                            <option value="M">Mio (M)</option>
+                            <option value="A">Altri (A)</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" min="0" v-model.number="g.costo_reale" 
+                               :disabled="g.stato === 'L' || g.stato === 'A'" 
+                               @input="salvaStato">
+                    </td>
+                    <td style="font-size: 11px;">{{ g.note }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- ACQUISTI EXTRA -->
+        <div v-if="currentTab === 'Extra'" class="table-container">
+            <h2>Spese Extra (Multe, scambi, etc.)</h2>
+            <table>
+                <tr>
+                    <th>Ruolo</th><th>Descrizione</th><th>Costo</th><th>Azione</th>
+                </tr>
+                <tr v-for="(ex, index) in extra" :key="index">
+                    <td>
+                        <select v-model="ex.ruolo" @change="salvaStato">
+                            <option value="P">P</option><option value="D">D</option>
+                            <option value="C">C</option><option value="A">A</option>
+                        </select>
+                    </td>
+                    <td><input type="text" v-model="ex.descrizione" @input="salvaStato"></td>
+                    <td><input type="number" v-model.number="ex.costo" @input="salvaStato"></td>
+                    <td><button class="btn btn-danger" @click="rimuoviExtra(index)">X</button></td>
+                </tr>
+            </table>
+            <button class="btn btn-success" @click="aggiungiExtra">+ Aggiungi Extra</button>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, watch, onMounted } = Vue
+
+        createApp({
+            setup() {
+                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra'];
+                const currentTab = ref('Control_Panel');
+                
+                // Stato Reattivo
+                const giocatori = ref([]);
+                const extra = ref([]);
+                const config = ref({ budget_iniziale: 500, slot_ruoli: { P:3, D:8, C:8, A:6 } });
+
+                // Inizializzazione Dati (da LocalStorage o fetch JSON)
+                onMounted(async () => {
+                    const dbSalvato = localStorage.getItem('fanta_db');
+                    if (dbSalvato) {
+                        const parsed = JSON.parse(dbSalvato);
+                        giocatori.value = parsed.giocatori;
+                        extra.value = parsed.extra || [];
+                        config.value = parsed.config;
+                    } else {
+                        try {
+                            const res = await fetch('dati.json');
+                            const data = await res.json();
+                            giocatori.value = data.giocatori;
+                            extra.value = data.extra;
+                            config.value = data.config;
+                            salvaStato(); // Scrive subito il db fresco in locale
+                        } catch (e) {
+                            alert("Errore nel caricamento del file dati.json. Assicurati che sia nella stessa cartella o esegui extract.py.");
+                        }
+                    }
+                });
+
+                const salvaStato = () => {
+                    localStorage.setItem('fanta_db', JSON.stringify({
+                        giocatori: giocatori.value,
+                        extra: extra.value,
+                        config: config.value
+                    }));
+                };
+
+                // --- CALCOLI DINAMICI E BUSINESS LOGIC ---
+                
+                const creditiSpesiGiocatori = computed(() => {
+                    return giocatori.value
+                        .filter(g => g.stato === 'M')
+                        .reduce((sum, g) => sum + (g.costo_reale || 0), 0);
+                });
+
+                const creditiSpesiExtra = computed(() => {
+                    return extra.value.reduce((sum, ex) => sum + (ex.costo || 0), 0);
+                });
+
+                const creditiSpesiTotali = computed(() => creditiSpesiGiocatori.value + creditiSpesiExtra.value);
+                const budgetResiduo = computed(() => config.value.budget_iniziale - creditiSpesiTotali.value);
+
+                const giocatoriComprati = (ruolo) => {
+                    return giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'M').length;
+                };
+
+                const slotLiberiTotali = computed(() => {
+                    let occupati = giocatori.value.filter(g => g.stato === 'M').length;
+                    return 25 - occupati;
+                });
+
+                const spesaPerRuolo = (ruolo) => {
+                    let spesaGioc = giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'M').reduce((s, g) => s + (g.costo_reale || 0), 0);
+                    let spesaEx = extra.value.filter(ex => ex.ruolo === ruolo).reduce((s, ex) => s + (ex.costo || 0), 0);
+                    return spesaGioc + spesaEx;
+                };
+
+                // Proxy della logica del Dashboard: Allocazione teorica del budget rimanente
+                const budgetAssegnatoPerRuolo = (ruolo) => {
+                    const allocazioneBase = { P: 30, D: 45, C: 100, A: 325 }; // Inserisci i tuoi target da Dashboard!
+                    const residuoRuolo = allocazioneBase[ruolo] - spesaPerRuolo(ruolo);
+                    return residuoRuolo > 0 ? residuoRuolo : 0;
+                };
+
+                // Motore Ricalcolo MAX_D (Il core della tua app)
+                const calcolaMaxD = (g) => {
+                    if (g.stato !== 'L') return '-';
+                    
+                    /* 
+                     * INSERISCI QUI LA TRADUZIONE DELLA TUA FORMULA EXCEL
+                     * Attualmente implementata: MAX * Indice_Inflazione * Modificatore_Categoria
+                     */
+                    let inflazione = budgetResiduo.value / 500; // Formula semplificata per evitare divisioni per 0
+                    if (inflazione < 0.1) inflazione = 0.1;
+
+                    let coeff_categoria = 1.0;
+                    if (g.cat === 'Occ') coeff_categoria = 1.15;
+                    if (g.cat === 'Pun') coeff_categoria = 1.05;
+                    if (g.cat === 'Scm') coeff_categoria = 0.90;
+
+                    let max_d_calcolato = Math.round(g.max * inflazione * coeff_categoria);
+                    return max_d_calcolato < 1 ? 1 : max_d_calcolato;
+                };
+
+                // --- UI INTERACTIONS ---
+
+                const giocatoriFiltered = computed(() => {
+                    return giocatori.value.filter(g => g.ruolo === currentTab.value);
+                });
+
+                const onUpdateStato = (g) => {
+                    if (g.stato !== 'M') g.costo_reale = 0; // Azzera costo se lo svincoli o va ad altri
+                    salvaStato();
+                };
+
+                const aggiungiExtra = () => { extra.value.push({ ruolo: 'P', descrizione: '', costo: 0 }); salvaStato(); };
+                const rimuoviExtra = (index) => { extra.value.splice(index, 1); salvaStato(); };
+
+                const esportaDati = () => {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({giocatori: giocatori.value, extra: extra.value, config: config.value}));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href",     dataStr);
+                    downloadAnchorNode.setAttribute("download", "asta_backup.json");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                };
+
+                const resetDati = () => {
+                    if(confirm("Sei sicuro? Perderai tutti i costi e gli stati assegnati. L'operazione ricaricherà i dati dal file iniziale.")) {
+                        localStorage.removeItem('fanta_db');
+                        location.reload();
+                    }
+                };
+
+                return { 
+                    tabs, currentTab, config, extra, giocatoriFiltered,
+                    creditiSpesiTotali, budgetResiduo, slotLiberiTotali,
+                    giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo,
+                    calcolaMaxD, onUpdateStato, salvaStato, aggiungiExtra, rimuoviExtra, esportaDati, resetDati
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
