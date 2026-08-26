@@ -159,7 +159,7 @@
                     <td>{{ metrics[ruolo].slotLiberi }}</td>
                     <td>{{ metrics[ruolo].slotTot - metrics[ruolo].slotLiberi }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ metrics[ruolo].budgetTarget }}</td>
-                    <td>{{ round2(metrics[ruolo].spesaReale) }}</td>
+                    <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(metrics[ruolo].spesaReale) }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ formatPct(metrics[ruolo].budgetTarget ? metrics[ruolo].spesaReale / metrics[ruolo].budgetTarget : 0) }}</td>
                     <td>{{ round2(creditiPerSlotReale(ruolo)) }}</td>
