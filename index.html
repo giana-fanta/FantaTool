@@ -184,7 +184,7 @@
                 <tr>
                     <th>Ruolo</th><th>Slot Tot</th><th>Liberi</th><th>Occupati</th>
                     <th>Budget</th><th>Spesi</th><th>Residui</th><th>% Budget</th>
-                    <th>Crediti / Slot (reali)</th><th>Segnale</th>
+                    <th>Crediti / Slot (reali)</th><th>Slot Avversari da Riempire</th><th>Segnale</th>
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
                     <td><strong>{{ ruolo }}</strong></td>
@@ -196,6 +196,7 @@
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ formatPct(metrics[ruolo].budgetTarget ? metrics[ruolo].spesaReale / metrics[ruolo].budgetTarget : 0) }}</td>
                     <td>{{ round2(creditiPerSlotReale(ruolo)) }}</td>
+                    <td>{{ slotAltriDaRiempire(ruolo) }}</td>
                     <td>
                         <span :class="['badge', (metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) < 0 ? 'badge-warn' : 'badge-ok']">
                             {{ (metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) < 0 ? 'ATTENZIONE' : 'OK' }}
@@ -568,6 +569,17 @@
                 const countStato = (ruolo, stato) =>
                     giocatori.value.filter(g => g.ruolo === ruolo && g.stato === stato).length;
 
+                // Numero di altri utenti in lega (oltre a chi usa l'app), ognuno dei quali deve
+                // riempire gli stessi slot per ruolo previsti da config.slot_ruoli.
+                const NUM_AVVERSARI = 9;
+
+                // Slot ancora da riempire dagli avversari per un ruolo: totale slot richiesti da
+                // tutti gli avversari meno i giocatori di quel ruolo già presi da "Altri" (stato 'A').
+                const slotAltriDaRiempire = (ruolo) => {
+                    const richiesti = NUM_AVVERSARI * (config.value.slot_ruoli[ruolo] || 0);
+                    return Math.max(0, richiesti - countStato(ruolo, 'A'));
+                };
+
                 const countCatStato = (ruolo, cat, stato) =>
                     giocatori.value.filter(g => g.ruolo === ruolo && g.cat === cat && g.stato === stato).length;
 
@@ -916,7 +928,7 @@
                     creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
-                    mediaCreditiMiei, mediaCreditiAltri,
+                    mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo,
                     calcolaMaxD, onUpdateStato, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
