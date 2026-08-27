@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asta Live - Fantacalcio </title>
+    <title>Asta Live - Fanta 2627</title>
     <!-- Importazione Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -177,7 +177,7 @@
                     <div class="value">{{ round2(prezzoMedioReale) }}</div>
                 </div>
                 <div class="card" :class="{ 'card-positive': mediaCreditiAltri > 0 && mediaCreditiMiei < mediaCreditiAltri, 'card-negative': mediaCreditiAltri > 0 && mediaCreditiMiei > mediaCreditiAltri }">
-                    <h3>Spesa Media: Io vs Altri</h3>
+                    <h3>Media Spesa: Io vs Altri</h3>
                     <div class="value" :class="{ 'dato-nascosto': datiSensibiliNascosti }">
                         {{ round2(mediaCreditiMiei) }} vs {{ mediaCreditiAltri > 0 ? round2(mediaCreditiAltri) : 'n/d' }}
                     </div>
@@ -190,7 +190,7 @@
                 <tr>
                     <th>Ruolo</th><th>Slot Tot</th><th>Liberi</th><th>Occupati</th>
                     <th>Budget</th><th>Spesi</th><th>Residui</th><th>% Budget</th>
-                    <th>Crediti / Slot (reali)</th><th>Slot Riempiti Avversari - Slot Medi Rimanenti</th><th>Segnale</th>
+                    <th>Crediti / Slot (reali)</th><th>Slot Riempiti Avversari</th><th>Segnale</th>
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
                     <td><strong>{{ ruolo }}</strong></td>
@@ -201,7 +201,7 @@
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(metrics[ruolo].spesaReale) }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ formatPct(metrics[ruolo].budgetTarget ? metrics[ruolo].spesaReale / metrics[ruolo].budgetTarget : 0) }}</td>
-                    <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(creditiPerSlotReale(ruolo)) }}</td>
+                    <td>{{ round2(creditiPerSlotReale(ruolo)) }}</td>
                     <td>
                         <div class="slot-avv-stats">
                             <span class="slot-avv-item" title="Slot riempiti / Slot totali richiesti dagli avversari">{{ statoSlotAvversari(ruolo).riempiti }} / {{ statoSlotAvversari(ruolo).totale }}</span>
@@ -426,7 +426,7 @@
                 const ROLE_CONFIG = {
                     P: { budgetTarget: 30,  targetOP: 0.30, targetTit: 0.30, tolleranza: 0.9, potenza: 3 },
                     D: { budgetTarget: 45,  targetOP: 0.30, targetTit: 0.20, tolleranza: 0.9, potenza: 2 },
-                    C: { budgetTarget: 100, targetOP: 0.30, targetTit: 0.20, tolleranza: 0.8, potenza: 1.2 },
+                    C: { budgetTarget: 100, targetOP: 0.30, targetTit: 0.20, tolleranza: 0.8, potenza: 0.5, gainScarsita: 1.6 },
                     A: { budgetTarget: 325, targetOP: 0.30, targetTit: 0.10, tolleranza: null, potenza: null } // per gli attaccanti V=W=X=1 fisso
                 };
                 // Pesi per l'indice di "inflazione di ruolo" (colonna F del foglio Dashboard)
@@ -1108,6 +1108,12 @@
 
                     const pesoCategoria = PESO_CATEGORIA[g.cat] !== undefined ? PESO_CATEGORIA[g.cat] : 0.05;
                     const m = metrics.value[g.ruolo];
+                    // [Raffinamento] Coefficiente di guadagno per ruolo che amplifica solo l'uso di F
+                    // dentro moltiplicatoreCategoria, per compensare la diluizione strutturale di F
+                    // nei ruoli con listone più grande (es. C). F stesso resta invariato per gli altri
+                    // usi (es. fattoreRank). Default 1 (nessun effetto) per i ruoli non configurati.
+                    const cfg = ROLE_CONFIG[g.ruolo];
+                    const gainScarsita = cfg && cfg.gainScarsita !== undefined ? cfg.gainScarsita : 1;
 
                     // ② Pressione da slot avversari ancora da riempire in quel ruolo: amplifica
                     // leggermente il moltiplicatore di categoria (pesata come le altre CAT, così Occ
@@ -1124,7 +1130,7 @@
                     const capacitaEff = 1 + confPressione * (capacitaSpesaAltri.value - 1);
                     const pressioneAvversari = pressioneAvversariGrezza * capacitaEff;
                     const pesoCategoriaNorm = pesoCategoria / 0.5; // normalizzato sul peso massimo (Occ)
-                    const moltiplicatoreCategoria = (1 + m.F * pesoCategoria) *
+                    const moltiplicatoreCategoria = (1 + m.F * pesoCategoria * gainScarsita) *
                         (1 + FINETUNING.betaPressioneAvversari * pesoCategoriaNorm * pressioneAvversari);
 
                     let fattoreRuolo = 1; // per gli attaccanti (A) il fattore V/W/X non è applicato (=1)
