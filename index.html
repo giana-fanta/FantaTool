@@ -306,7 +306,7 @@
                     <td>
                         <input type="number" min="0" v-model.number="g.costo_reale" 
                                :disabled="g.stato === 'L'" 
-                               @input="salvaStato">
+                               @input="onCostoRealeChange(g)">
                     </td>
                     <td style="font-size: 11px;">{{ g.note }}</td>
                 </tr>
@@ -329,14 +329,15 @@
             </table>
 
             <h2>Extra Avversari</h2>
-            <p class="note">Slot extra da conteggiare come "già riempiti" nella Situazione Reparti (Slot Riempiti Avversari). Non interagiscono con i giocatori "Altri", il budget o la rosa "Mio": incidono solo su questa dinamica.</p>
+            <p class="note">Slot extra da conteggiare come "già riempiti" nella Situazione Reparti (Slot Riempiti Avversari), con i relativi crediti spesi per acquistarli (facoltativi). Non interagiscono con il budget o la rosa "Mio": i crediti vengono usati solo nelle metriche/calcoli relativi agli Altri (media spesa Altri, stima MAX_D).</p>
             <table>
                 <tr>
-                    <th>Ruolo</th><th>Extra Avversari (slot)</th>
+                    <th>Ruolo</th><th>Extra Avversari (slot)</th><th>Extra Avversari (crediti)</th>
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'extra-avv-' + ruolo">
                     <td><strong>{{ ruolo }}</strong></td>
                     <td class="campo-extra-avv"><input type="number" min="0" v-model.number="extra[ruolo].slotAvversariExtra" @input="salvaStato"></td>
+                    <td class="campo-extra-avv"><input type="number" min="0" v-model.number="extra[ruolo].creditiAvversariExtra" @input="salvaStato"></td>
                 </tr>
             </table>
         </div>
@@ -413,6 +414,13 @@
                 });
                 const config = ref({ budget_iniziale: 500, slot_ruoli: { P:3, D:8, C:8, A:6 } });
 
+                // Storico transazioni (Mio + Altri) usato dal fattore di "momentum" (proposta ③):
+                // una riga per giocatore acquistato, con il rapporto costo_reale/max al momento
+                // dell'ultimo aggiornamento e un numero d'ordine progressivo (ordine cronologico
+                // di inserimento/modifica, non un timestamp, per restare stabile tra sessioni).
+                const storicoAcquisti = ref([]);
+                const prossimoOrdineAcquisto = ref(0);
+
                 // Parametri "Dashboard" del file Excel (target di budget e slot per ruolo,
                 // tolleranze e potenze usate nel motore MAX_D). Riportati 1:1 dal foglio Dashboard.
                 const ROLE_CONFIG = {
@@ -425,6 +433,21 @@
                 const PESO_INFLAZIONE = { Occ: 5, Pun: 4, Tit: 3, Scm: 2, Sca: 1 };
                 // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
                 const PESO_CATEGORIA = { Occ: 0.5, Pun: 0.35, Tit: 0.25, Scm: 0.15 }; // default (Sca e altro) = 0.05
+
+                // --- Parametri di fine-tuning del motore MAX_D (proposte ①②③④) ---
+                // Sono correzioni moltiplicative "piccole" applicate SOPRA la formula originale,
+                // per non alterarne l'ordine di grandezza già validato: agiscono solo quando ci
+                // sono abbastanza dati (altrimenti restano neutre, cioè moltiplicano per 1).
+                const FINETUNING = {
+                    alphaInflazioneOsservata: 0.20,   // ① peso della spesa realmente osservata sugli Altri
+                    minCampioneAltri: 2,               // ① n. minimo di acquisti Altri per attivare la correzione
+                    limiteInflazioneOsservata: 0.5,     // ① clamp dello scarto osservato/atteso (evita outlier)
+                    betaPressioneAvversari: 0.08,       // ② peso della pressione da slot avversari mancanti
+                    gammaMomentum: 0.25,                 // ③ peso dell'accelerazione/decelerazione recente
+                    minStoricoMomentum: 3,               // ③ n. minimo di transazioni nel ruolo per attivarlo
+                    finestraMomentum: 5,                 // ③ n. di transazioni recenti considerate "recenti"
+                    deltaRank: 0.12                       // ④ peso massimo del bonus di posizione in CAT
+                };
 
                 async function sha256Hex(testo) {
                     const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(testo));
@@ -524,7 +547,7 @@
                 // Normalizza il vecchio formato "extra" (array con descrizione) verso il nuovo,
                 // così un backup/localStorage precedente resta leggibile.
                 function normalizzaExtra(valore) {
-                    const base = { P: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0 }, D: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0 }, C: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0 }, A: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0 } };
+                    const base = { P: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0, creditiAvversariExtra: 0 }, D: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0, creditiAvversariExtra: 0 }, C: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0, creditiAvversariExtra: 0 }, A: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0, creditiAvversariExtra: 0 } };
                     if (!valore) return base;
                     if (Array.isArray(valore)) {
                         valore.forEach(ex => {
@@ -544,7 +567,11 @@
                                         : [],
                                     // Slot "Extra" degli avversari: non collegati ai giocatori "Altri" né alla
                                     // rosa "Mio"; incidono solo sul conteggio Slot Riempiti Avversari in dashboard.
-                                    slotAvversariExtra: valore[r].slotAvversariExtra || 0
+                                    slotAvversariExtra: valore[r].slotAvversariExtra || 0,
+                                    // Crediti spesi dagli avversari per i loro slot Extra: facoltativi, non
+                                    // toccano il budget/la rosa "Mio". Alimentano solo le metriche "Altri"
+                                    // (media spesa Altri) e il motore MAX_D (proposte di fine-tuning).
+                                    creditiAvversariExtra: valore[r].creditiAvversariExtra || 0
                                 };
                             }
                         });
@@ -571,6 +598,9 @@
                         giocatori.value = parsed.giocatori;
                         extra.value = normalizzaExtra(parsed.extra);
                         config.value = parsed.config;
+                        // Retrocompatibile: backup/localStorage precedenti non hanno questi campi.
+                        storicoAcquisti.value = Array.isArray(parsed.storicoAcquisti) ? parsed.storicoAcquisti : [];
+                        prossimoOrdineAcquisto.value = parsed.prossimoOrdineAcquisto || 0;
                     } else {
                         try {
                             const res = await fetch('dati.json');
@@ -578,6 +608,8 @@
                             giocatori.value = data.giocatori;
                             extra.value = normalizzaExtra(data.extra);
                             config.value = data.config;
+                            storicoAcquisti.value = [];
+                            prossimoOrdineAcquisto.value = 0;
                             salvaStato(); // Scrive subito il db fresco in locale
                         } catch (e) {
                             alert("Errore nel caricamento del file dati.json. Assicurati che sia nella stessa cartella o esegui extract.py.");
@@ -589,7 +621,9 @@
                     localStorage.setItem('fanta_db', JSON.stringify({
                         giocatori: giocatori.value,
                         extra: extra.value,
-                        config: config.value
+                        config: config.value,
+                        storicoAcquisti: storicoAcquisti.value,
+                        prossimoOrdineAcquisto: prossimoOrdineAcquisto.value
                     }));
                 };
 
@@ -748,9 +782,29 @@
                 });
                 const mediaCreditiAltri = computed(() => {
                     const altri = giocatori.value.filter(g => g.stato === 'A' && g.costo_reale > 0);
-                    if (!altri.length) return 0;
-                    return altri.reduce((s, g) => s + (g.costo_reale || 0), 0) / altri.length;
+                    // Gli Extra Avversari (scheda Extra) contano come acquisti "Altri" a tutti gli
+                    // effetti: ogni slot extra è un acquisto in più e i suoi crediti (se indicati)
+                    // si sommano a quelli spesi, esattamente come già avviene sul lato "Mio".
+                    const extraSlotAltriTot = ['P', 'D', 'C', 'A'].reduce((s, r) => s + (extra.value[r]?.slotAvversariExtra || 0), 0);
+                    const extraCreditiAltriTot = ['P', 'D', 'C', 'A'].reduce((s, r) => s + (extra.value[r]?.creditiAvversariExtra || 0), 0);
+                    const numAcquisti = altri.length + extraSlotAltriTot;
+                    if (!numAcquisti) return 0;
+                    const creditiTot = altri.reduce((s, g) => s + (g.costo_reale || 0), 0) + extraCreditiAltriTot;
+                    return creditiTot / numAcquisti;
                 });
+
+                // Versione per-ruolo di mediaCreditiAltri, usata dalla proposta ① (inflazione
+                // ibrida) del motore MAX_D: restituisce sia la media sia il numero di osservazioni,
+                // così la formula può astenersi dal correggere quando il campione è troppo piccolo.
+                const mediaCreditiAltriRuoloInfo = (ruolo) => {
+                    const altri = giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'A' && g.costo_reale > 0);
+                    const extraSlotAltri = extra.value[ruolo]?.slotAvversariExtra || 0;
+                    const extraCreditiAltri = extra.value[ruolo]?.creditiAvversariExtra || 0;
+                    const numAcquisti = altri.length + extraSlotAltri;
+                    if (!numAcquisti) return { media: 0, numAcquisti: 0 };
+                    const creditiTot = altri.reduce((s, g) => s + (g.costo_reale || 0), 0) + extraCreditiAltri;
+                    return { media: creditiTot / numAcquisti, numAcquisti };
+                };
 
                 // Indice di inflazione GLOBALE usato dentro MAX_D: MAX(0.1, Crediti_Residui / Costo_Atteso_Rimanente)
                 const inflazioneGlobale = computed(() => {
@@ -831,17 +885,97 @@
                         .filter(g => g.ruolo === ruolo && g.stato === 'M')
                         .sort((a, b) => a.nome.localeCompare(b.nome));
 
-                // Motore Ricalcolo MAX_D — replica esatta della formula presente in ogni foglio P/D/C/A.
+                const clampValore = (v, min, max) => Math.max(min, Math.min(max, v));
+
+                // Registra/aggiorna una transazione (Mio o Altri) nello storico usato dal fattore
+                // di momentum (proposta ③). Se il giocatore è già presente aggiorna solo il
+                // rapporto costo/max mantenendo l'ordine originale; altrimenti crea una nuova voce
+                // con numero d'ordine progressivo.
+                const registraTransazione = (g) => {
+                    if (!g.max) return;
+                    const rapporto = (g.costo_reale || 0) / g.max;
+                    const idx = storicoAcquisti.value.findIndex(t => t.nome === g.nome);
+                    if (idx >= 0) {
+                        storicoAcquisti.value[idx] = { ...storicoAcquisti.value[idx], ruolo: g.ruolo, cat: g.cat, rapporto };
+                    } else {
+                        prossimoOrdineAcquisto.value += 1;
+                        storicoAcquisti.value.push({ ordine: prossimoOrdineAcquisto.value, nome: g.nome, ruolo: g.ruolo, cat: g.cat, rapporto });
+                    }
+                };
+
+                const rimuoviTransazione = (nome) => {
+                    storicoAcquisti.value = storicoAcquisti.value.filter(t => t.nome !== nome);
+                };
+
+                // Chiamato dall'input "Costo Reale": aggiorna lo storico transazioni ogni volta che
+                // il costo di un giocatore già assegnato (Mio o Altri) viene inserito/corretto.
+                const onCostoRealeChange = (g) => {
+                    if (g.stato !== 'L') registraTransazione(g);
+                    salvaStato();
+                };
+
+                // ③ Fattore di momentum: confronta il rapporto costo/max delle transazioni più
+                // recenti di un ruolo con la media storica dello stesso ruolo. Se l'asta sta
+                // accelerando su quel ruolo (si paga di più del solito) il fattore sale sopra 1,
+                // se sta rallentando scende sotto 1. Resta neutro (1) finché non c'è abbastanza
+                // storico, e viene comunque limitato per evitare correzioni eccessive.
+                const fattoreMomentum = (ruolo) => {
+                    const storicoRuolo = storicoAcquisti.value
+                        .filter(t => t.ruolo === ruolo && t.rapporto > 0)
+                        .sort((a, b) => a.ordine - b.ordine);
+                    if (storicoRuolo.length < FINETUNING.minStoricoMomentum) return 1;
+                    const recenti = storicoRuolo.slice(-FINETUNING.finestraMomentum);
+                    const mediaRecente = recenti.reduce((s, t) => s + t.rapporto, 0) / recenti.length;
+                    const mediaStorica = storicoRuolo.reduce((s, t) => s + t.rapporto, 0) / storicoRuolo.length;
+                    if (!mediaStorica) return 1;
+                    const scarto = (mediaRecente - mediaStorica) / mediaStorica;
+                    return clampValore(1 + FINETUNING.gammaMomentum * scarto, 0.85, 1.2);
+                };
+
+                // Percentile (0-1) del MAX di un giocatore rispetto agli altri liberi della stessa
+                // CAT/ruolo: 1 = il migliore rimasto sul mercato in quella CAT, valori bassi = fondo
+                // classifica. Usato dalla proposta ④ per premiare i "migliori superstiti" quando
+                // la CAT è ormai scarsa.
+                const percentileMaxInCat = (g) => {
+                    const liberi = giocatori.value.filter(x => x.ruolo === g.ruolo && x.cat === g.cat && x.stato === 'L');
+                    if (liberi.length <= 1) return 1;
+                    const countMinoriUguali = liberi.filter(x => x.max <= g.max).length;
+                    return countMinoriUguali / liberi.length;
+                };
+
+                // ④ Fattore di posizione in CAT: il bonus è proporzionale sia a quanto il giocatore
+                // è in alto nella propria CAT (percentile) sia a quanto quella CAT è già scarsa
+                // (1 - F_ruolo, cioè F_ruolo basso = CAT quasi esaurita). Se la CAT è ancora
+                // abbondante il fattore resta vicino a 1 anche per i migliori.
+                const fattoreRank = (g, fRuolo) => {
+                    const percentile = percentileMaxInCat(g);
+                    return 1 + FINETUNING.deltaRank * percentile * (1 - fRuolo);
+                };
+
+                // Motore Ricalcolo MAX_D — parte dalla formula originale (replica esatta del foglio
+                // Excel P/D/C/A) e vi applica sopra 4 correzioni di fine-tuning (①②③④), pensate per
+                // affinare la stima senza cambiarne l'ordine di grandezza già validato.
                 // Restituisce sempre un numero (anche per uno "L" ipotetico), usato sia per la colonna
                 // MAX_D sia come base per l'ordinamento per prezzo.
                 const calcolaMaxDNumerico = (g) => {
-                    // Se nessun giocatore è ancora stato assegnato (COSTO_REALE vuoto ovunque),
-                    // l'Excel restituisce il MAX grezzo senza alcun aggiustamento.
+                    // INVARIANTE: finché l'asta non è iniziata (nessun acquisto Mio/Extra Mio), il
+                    // motore deve restituire esattamente MAX_base, senza alcuna correzione dinamica
+                    // — nemmeno le 4 proposte di fine-tuning qui sotto. Questo controllo resta il
+                    // primissimo e incondizionato, esattamente come nella versione originale.
                     if (nessunAcquistoEffettuato.value) return g.max;
 
                     const pesoCategoria = PESO_CATEGORIA[g.cat] !== undefined ? PESO_CATEGORIA[g.cat] : 0.05;
                     const m = metrics.value[g.ruolo];
-                    const moltiplicatoreCategoria = 1 + m.F * pesoCategoria;
+
+                    // ② Pressione da slot avversari ancora da riempire in quel ruolo: amplifica
+                    // leggermente il moltiplicatore di categoria (pesata come le altre CAT, così Occ
+                    // "sente" la pressione più di Sca) quando gli avversari devono ancora comprare
+                    // molto in quel ruolo — un segnale di domanda esterna che F_ruolo da solo non vede.
+                    const statoAvv = statoSlotAvversari(g.ruolo);
+                    const pressioneAvversari = statoAvv.totale ? statoAvv.mancanti / statoAvv.totale : 0;
+                    const pesoCategoriaNorm = pesoCategoria / 0.5; // normalizzato sul peso massimo (Occ)
+                    const moltiplicatoreCategoria = (1 + m.F * pesoCategoria) *
+                        (1 + FINETUNING.betaPressioneAvversari * pesoCategoriaNorm * pressioneAvversari);
 
                     let fattoreRuolo = 1; // per gli attaccanti (A) il fattore V/W/X non è applicato (=1)
                     if (g.ruolo !== 'A') {
@@ -850,7 +984,24 @@
                         else fattoreRuolo = m.X; // Scm, Sca e categorie non note
                     }
 
-                    let valore = Math.round(g.max * inflazioneGlobale.value * moltiplicatoreCategoria * fattoreRuolo);
+                    // ① Inflazione ibrida: alla componente teorica (residuo/atteso, uguale per tutti)
+                    // si somma una correzione basata su quanto gli Altri stanno REALMENTE pagando in
+                    // quel ruolo rispetto al costo medio atteso per slot, attiva solo con un campione
+                    // minimo di osservazioni (altrimenti resta la sola inflazione teorica).
+                    const altriInfo = mediaCreditiAltriRuoloInfo(g.ruolo);
+                    const costoMedioAtteso = m.slotTot ? m.budgetTarget / m.slotTot : 0;
+                    let inflazioneIbrida = inflazioneGlobale.value;
+                    if (altriInfo.numAcquisti >= FINETUNING.minCampioneAltri && costoMedioAtteso > 0) {
+                        const scarto = clampValore((altriInfo.media / costoMedioAtteso) - 1,
+                            -FINETUNING.limiteInflazioneOsservata, FINETUNING.limiteInflazioneOsservata);
+                        inflazioneIbrida = inflazioneGlobale.value * (1 + FINETUNING.alphaInflazioneOsservata * scarto);
+                    }
+
+                    // ③ Momentum recente sul ruolo e ④ posizione del giocatore nella propria CAT.
+                    const momentum = fattoreMomentum(g.ruolo);
+                    const rank = fattoreRank(g, m.F);
+
+                    let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank);
                     return valore < 1 ? 1 : valore;
                 };
 
@@ -913,12 +1064,17 @@
                 });
 
                 const onUpdateStato = (g) => {
-                    if (g.stato === 'L') g.costo_reale = 0; // Azzera costo solo se il giocatore torna libero
+                    if (g.stato === 'L') {
+                        g.costo_reale = 0; // Azzera costo solo se il giocatore torna libero
+                        rimuoviTransazione(g.nome); // Esce anche dallo storico usato dal momentum
+                    } else {
+                        registraTransazione(g);
+                    }
                     salvaStato();
                 };
 
                 const esportaDati = () => {
-                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({giocatori: giocatori.value, extra: extra.value, config: config.value}));
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({giocatori: giocatori.value, extra: extra.value, config: config.value, storicoAcquisti: storicoAcquisti.value, prossimoOrdineAcquisto: prossimoOrdineAcquisto.value}));
                     const downloadAnchorNode = document.createElement('a');
                     downloadAnchorNode.setAttribute("href",     dataStr);
                     downloadAnchorNode.setAttribute("download", "asta_backup.json");
@@ -949,6 +1105,9 @@
                             giocatori.value = parsed.giocatori;
                             extra.value = normalizzaExtra(parsed.extra);
                             config.value = parsed.config;
+                            // Retrocompatibile: backup più vecchi non hanno lo storico transazioni.
+                            storicoAcquisti.value = Array.isArray(parsed.storicoAcquisti) ? parsed.storicoAcquisti : [];
+                            prossimoOrdineAcquisto.value = parsed.prossimoOrdineAcquisto || 0;
                             salvaStato();
                             alert("Backup importato correttamente.");
                         } catch (err) {
@@ -978,7 +1137,7 @@
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo,
-                    calcolaMaxD, onUpdateStato, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
+                    calcolaMaxD, onUpdateStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
                     accessGranted, inputAccesso, erroreAccesso, tentaAccesso
