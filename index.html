@@ -434,22 +434,32 @@
                 // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
                 const PESO_CATEGORIA = { Occ: 0.5, Pun: 0.35, Tit: 0.25, Scm: 0.15 }; // default (Sca e altro) = 0.05
 
-                // --- Parametri di fine-tuning del motore MAX_D (proposte ①②③④ + raffinamenti A/B/C/D) ---
+                // --- Parametri di fine-tuning del motore MAX_D (proposte ①②③④⑤ + raffinamenti A/B/C/D/E) ---
                 // Sono correzioni moltiplicative "piccole" applicate SOPRA la formula originale,
                 // per non alterarne l'ordine di grandezza già validato: agiscono solo quando ci
                 // sono abbastanza dati (altrimenti restano neutre, cioè moltiplicano per 1).
                 //
-                // Raffinamenti A/B/C/D (discussi e concordati) rispetto alla versione originale:
+                // Raffinamenti A/B/C/D/E (discussi e concordati) rispetto alla versione originale:
                 //  A) i vecchi cutoff "a gradino" (minCampioneAltri, minStoricoMomentum) diventano
                 //     rampe di confidenza continue (sogliaConfidenza), per evitare salti innaturali
                 //     di valore appena si supera la soglia minima di osservazioni.
                 //  B) l'inflazione osservata (①) è ora pesata per CAT (PESO_INFLAZIONE) invece che
                 //     mediata in modo indifferenziato sull'intero ruolo.
                 //  C) il momentum (③) pesa le transazioni storiche per importanza di CAT, così un
-                //     accumulo di acquisti economici (Sca) non sposta il momentum di un Occ.
+                //     accumulo di acquisti economici (Sca) non sposta il momentum di un Occ. La
+                //     finestra fissa "ultime N" è stata sostituita da un decadimento esponenziale
+                //     (nessun taglio netto dentro/fuori finestra) e la confidenza satura più
+                //     lentamente, per smorzare la sensibilità a un singolo acquisto anomalo.
                 //  D) la pressione avversari (②) è ora corretta per la capacità di spesa residua
                 //     stimata degli avversari, e il rank (④) è corretto per la numerosità originaria
                 //     della CAT (evita il bonus pieno "automatico" quando resta un solo giocatore).
+                //  E) nuovo fattore ⑤ "Sazietà": V/W/X (fattoreRuolo) misura solo la disponibilità di
+                //     BUDGET residuo, non quanti giocatori di quella CAT sono già stati presi — perciò
+                //     un acquisto "economico" non riduceva il MAX_D degli altri Occ/Pun/Tit dello
+                //     stesso ruolo anche a quota già raggiunta. Il fattore ⑤ agisce sul CONTEGGIO
+                //     (indipendente dal prezzo pagato) rispetto al target H/I già usato altrove nel
+                //     motore, per riflettere la minore necessità di ulteriori giocatori di quella CAT
+                //     una volta raggiunta la quota.
                 const FINETUNING = {
                     alphaInflazioneOsservata: 0.20,     // ① peso della spesa realmente osservata sugli Altri
                     n0Inflazione: 4,                     // A/B: n. osservazioni (pesate per CAT) per confidenza piena
@@ -459,10 +469,12 @@
                     capacitaAvversariMin: 0.5,             // D: clamp inferiore del fattore capacità di spesa Altri
                     capacitaAvversariMax: 1.5,             // D: clamp superiore del fattore capacità di spesa Altri
                     gammaMomentum: 0.25,                   // ③ peso dell'accelerazione/decelerazione recente
-                    n0Momentum: 5,                          // A: n. transazioni nel ruolo per confidenza piena
-                    finestraMomentum: 5,                     // ③ n. di transazioni recenti considerate "recenti"
+                    n0Momentum: 8,                          // A/C: n. transazioni nel ruolo per confidenza piena (era 5)
+                    decadimentoMomentum: 0.85,               // C: fattore di decadimento per posizione (sostituisce finestraMomentum)
                     deltaRank: 0.12,                          // ④ peso massimo del bonus di posizione in CAT
-                    sogliaCampioneRank: 6                     // D: n. giocatori originari in CAT per confidenza piena
+                    sogliaCampioneRank: 6,                     // D: n. giocatori originari in CAT per confidenza piena
+                    epsilonSazieta: 0.15,                       // E: riduzione di MAX_D per ogni giocatore "oltre quota" nella CAT
+                    sazietaMin: 0.5                              // E: pavimento del fattore di sazietà (mai sotto il 50%)
                 };
 
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
@@ -988,10 +1000,14 @@
                 // accelerando su quel ruolo (si paga di più del solito) il fattore sale sopra 1,
                 // se sta rallentando scende sotto 1.
                 // [Raffinamento A] Il vecchio cutoff secco (minStoricoMomentum) è ora una rampa di
-                // confidenza continua: con pochissimo storico la correzione è quasi nulla e cresce
-                // gradualmente, invece di "accendersi" di colpo al 100% alla terza transazione.
-                // [Raffinamento C] Le medie (recente e storica) sono pesate per l'importanza della CAT
-                // di ogni transazione (PESO_INFLAZIONE), e lo scarto risultante viene applicato al
+                // confidenza continua, e satura più lentamente (n0Momentum: 8 invece di 5).
+                // [Raffinamento C] La vecchia finestra fissa "ultime 5 transazioni" (taglio netto,
+                // dentro/fuori) è sostituita da un decadimento esponenziale: ogni transazione pesa
+                // sulla "media recente" in proporzione a quanto è vicina cronologicamente all'ultima,
+                // senza soglie nette — un singolo acquisto anomalo non fa più sparire/comparire di
+                // colpo dalla finestra, e il suo peso si attenua gradualmente man mano che invecchia.
+                // Le medie (recente e storica) restano inoltre pesate per l'importanza della CAT di
+                // ogni transazione (PESO_INFLAZIONE), e lo scarto risultante viene applicato al
                 // giocatore in valutazione in proporzione al peso della SUA CAT rispetto al peso medio
                 // delle transazioni osservate: un'accelerazione vista su acquisti Occ pesa molto sul
                 // momentum di un altro Occ, ma poco su quello di uno Sca, e viceversa.
@@ -1000,18 +1016,28 @@
                     const storicoRuolo = storicoAcquisti.value
                         .filter(t => t.ruolo === ruolo && t.rapporto > 0)
                         .sort((a, b) => a.ordine - b.ordine);
-                    const confidenza = sogliaConfidenza(storicoRuolo.length, FINETUNING.n0Momentum);
+                    const n = storicoRuolo.length;
+                    const confidenza = sogliaConfidenza(n, FINETUNING.n0Momentum);
                     if (confidenza <= 0) return 1;
-                    const mediaPesata = (arr) => {
-                        const pesoTot = arr.reduce((s, t) => s + pesoCatMomentum(t.cat), 0);
-                        return pesoTot ? arr.reduce((s, t) => s + t.rapporto * pesoCatMomentum(t.cat), 0) / pesoTot : 0;
+                    // mediaPesata: se pesoRecency è omesso calcola la media storica "piatta" (solo
+                    // pesata per CAT, nessun decadimento temporale) usata come baseline di confronto;
+                    // se fornito, applica anche il decadimento esponenziale per la media "recente".
+                    const mediaPesata = (conDecadimento) => {
+                        let pesoTot = 0, sommaTot = 0;
+                        storicoRuolo.forEach((t, idx) => {
+                            const distanzaDallUltima = n - 1 - idx; // 0 = transazione più recente
+                            const pesoRecency = conDecadimento ? Math.pow(FINETUNING.decadimentoMomentum, distanzaDallUltima) : 1;
+                            const peso = pesoCatMomentum(t.cat) * pesoRecency;
+                            pesoTot += peso;
+                            sommaTot += t.rapporto * peso;
+                        });
+                        return pesoTot ? sommaTot / pesoTot : 0;
                     };
-                    const recenti = storicoRuolo.slice(-FINETUNING.finestraMomentum);
-                    const mediaRecente = mediaPesata(recenti);
-                    const mediaStorica = mediaPesata(storicoRuolo);
+                    const mediaStorica = mediaPesata(false);
+                    const mediaRecente = mediaPesata(true);
                     if (!mediaStorica) return 1;
                     const scarto = (mediaRecente - mediaStorica) / mediaStorica;
-                    const pesoMedioOsservazioni = storicoRuolo.reduce((s, t) => s + pesoCatMomentum(t.cat), 0) / storicoRuolo.length;
+                    const pesoMedioOsservazioni = storicoRuolo.reduce((s, t) => s + pesoCatMomentum(t.cat), 0) / n;
                     const gammaEff = clampValore(
                         FINETUNING.gammaMomentum * (pesoCatMomentum(catGiocatore) / (pesoMedioOsservazioni || 1)),
                         0, FINETUNING.gammaMomentum * 2
@@ -1045,10 +1071,32 @@
                     return 1 + FINETUNING.deltaRank * percentile * (1 - fRuolo) * confCampione;
                 };
 
+                // ⑤ Fattore di sazietà [Raffinamento E]: V/W/X (fattoreRuolo, poco sotto) riflette
+                // solo la disponibilità di BUDGET residuo rispetto alla soglia attesa — non quanti
+                // giocatori di quella CAT sono già stati presi. Di conseguenza un acquisto "a poco
+                // prezzo" lascia il budget residuo alto e non riduce V/W/X per gli altri Occ/Pun/Tit
+                // dello stesso ruolo, anche a quota già completamente coperta. Questo fattore agisce
+                // invece sul solo CONTEGGIO (indipendente dal prezzo pagato) rispetto al target H
+                // (Occ/Pun) o I (Titolari) già usati altrove nel motore per definire "quanti ne
+                // servirebbero": ogni giocatore preso OLTRE quella quota riduce la priorità (quindi il
+                // MAX_D) degli altri liberi della stessa CAT/ruolo, con un pavimento (sazietaMin) che
+                // evita di azzerare il valore di un'eventuale scorta di qualità. Scm/Sca non hanno un
+                // target di quota "di qualità" definito nel motore (sono per costruzione lo slot
+                // residuo N), quindi restano fuori da questo fattore e continuano a valere 1.
+                const fattoreSazieta = (g, m) => {
+                    let giaPresiCat, targetCat;
+                    if (g.cat === 'Occ' || g.cat === 'Pun') { giaPresiCat = m.J; targetCat = m.H; }
+                    else if (g.cat === 'Tit') { giaPresiCat = m.K; targetCat = m.I; }
+                    else return 1;
+                    const surplus = Math.max(0, giaPresiCat - targetCat + 1);
+                    if (surplus <= 0) return 1;
+                    return clampValore(1 - FINETUNING.epsilonSazieta * surplus, FINETUNING.sazietaMin, 1);
+                };
+
                 // Motore Ricalcolo MAX_D — parte dalla formula originale (replica esatta del foglio
-                // Excel P/D/C/A) e vi applica sopra 4 correzioni di fine-tuning (①②③④), ciascuna a sua
-                // volta raffinata (A/B/C/D, vedi commenti su FINETUNING e sulle singole funzioni) per
-                // affinare ulteriormente la stima senza cambiarne l'ordine di grandezza già validato.
+                // Excel P/D/C/A) e vi applica sopra 5 correzioni di fine-tuning (①②③④⑤), ciascuna a
+                // sua volta raffinata (A/B/C/D/E, vedi commenti su FINETUNING e sulle singole funzioni)
+                // per affinare ulteriormente la stima senza cambiarne l'ordine di grandezza già validato.
                 // Restituisce sempre un numero (anche per uno "L" ipotetico), usato sia per la colonna
                 // MAX_D sia come base per l'ordinamento per prezzo.
                 const calcolaMaxDNumerico = (g) => {
@@ -1117,12 +1165,17 @@
                         inflazioneIbrida = inflazioneGlobale.value * (1 + FINETUNING.alphaInflazioneOsservata * confInflazione * scartoPesato);
                     }
 
-                    // ③ Momentum recente sul ruolo (pesato per CAT, proposta C) e ④ posizione del
-                    // giocatore nella propria CAT (corretta per numerosità originaria, proposta D).
+                    // ③ Momentum recente sul ruolo (pesato per CAT + decadimento esponenziale,
+                    // raffinamenti A/C) e ④ posizione del giocatore nella propria CAT (corretta per
+                    // numerosità originaria, raffinamento D).
                     const momentum = fattoreMomentum(g.ruolo, g.cat);
                     const rank = fattoreRank(g, m.F);
 
-                    let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank);
+                    // ⑤ Sazietà [Raffinamento E]: riduce la priorità (indipendentemente dal prezzo
+                    // pagato) quando la quota di Occ/Pun o Titolari nel ruolo è già stata raggiunta.
+                    const sazieta = fattoreSazieta(g, m);
+
+                    let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank * sazieta);
                     return valore < 1 ? 1 : valore;
                 };
 
