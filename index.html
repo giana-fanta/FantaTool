@@ -105,6 +105,12 @@
         th.th-ordinabile:hover { background: #343a46; }
         .btn-secondary { background: #4d5566; }
         .btn-outline { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
+
+        /* Situazione Reparti: tre misure (Riempiti/Tot, %, Media mancanti) affiancate nella stessa colonna */
+        .slot-avv-stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+        .slot-avv-item { white-space: nowrap; }
+        .slot-avv-sep { color: var(--text-muted); }
+        .campo-extra-avv input { max-width: 100px; }
     </style>
 </head>
 <body>
@@ -184,7 +190,7 @@
                 <tr>
                     <th>Ruolo</th><th>Slot Tot</th><th>Liberi</th><th>Occupati</th>
                     <th>Budget</th><th>Spesi</th><th>Residui</th><th>% Budget</th>
-                    <th>Crediti / Slot (reali)</th><th>Slot Avversari da Riempire</th><th>Segnale</th>
+                    <th>Crediti / Slot (reali)</th><th>Slot Riempiti Avversari</th><th>Segnale</th>
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
                     <td><strong>{{ ruolo }}</strong></td>
@@ -196,7 +202,15 @@
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ formatPct(metrics[ruolo].budgetTarget ? metrics[ruolo].spesaReale / metrics[ruolo].budgetTarget : 0) }}</td>
                     <td>{{ round2(creditiPerSlotReale(ruolo)) }}</td>
-                    <td>{{ slotAltriDaRiempire(ruolo) }}</td>
+                    <td>
+                        <div class="slot-avv-stats">
+                            <span class="slot-avv-item" title="Slot riempiti / Slot totali richiesti dagli avversari">{{ statoSlotAvversari(ruolo).riempiti }} / {{ statoSlotAvversari(ruolo).totale }}</span>
+                            <span class="slot-avv-sep">·</span>
+                            <span class="slot-avv-item" title="Percentuale di slot già riempiti">{{ formatPct(statoSlotAvversari(ruolo).pct) }}</span>
+                            <span class="slot-avv-sep">·</span>
+                            <span class="slot-avv-item" title="Slot mancanti in media per ogni avversario">{{ round2(statoSlotAvversari(ruolo).mediaMancante) }} media</span>
+                        </div>
+                    </td>
                     <td>
                         <span :class="['badge', (metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) < 0 ? 'badge-warn' : 'badge-ok']">
                             {{ (metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) < 0 ? 'ATTENZIONE' : 'OK' }}
@@ -311,6 +325,18 @@
                     <td><strong>{{ ruolo }}</strong></td>
                     <td><input type="number" min="0" v-model.number="extra[ruolo].slot" @input="onSlotExtraChange(ruolo)"></td>
                     <td><input type="number" min="0" v-model.number="extra[ruolo].crediti" @input="salvaStato"></td>
+                </tr>
+            </table>
+
+            <h2>Extra Avversari</h2>
+            <p class="note">Slot extra da conteggiare come "già riempiti" nella Situazione Reparti (Slot Riempiti Avversari). Non interagiscono con i giocatori "Altri", il budget o la rosa "Mio": incidono solo su questa dinamica.</p>
+            <table>
+                <tr>
+                    <th>Ruolo</th><th>Extra Avversari (slot)</th>
+                </tr>
+                <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'extra-avv-' + ruolo">
+                    <td><strong>{{ ruolo }}</strong></td>
+                    <td class="campo-extra-avv"><input type="number" min="0" v-model.number="extra[ruolo].slotAvversariExtra" @input="salvaStato"></td>
                 </tr>
             </table>
         </div>
@@ -498,7 +524,7 @@
                 // Normalizza il vecchio formato "extra" (array con descrizione) verso il nuovo,
                 // così un backup/localStorage precedente resta leggibile.
                 function normalizzaExtra(valore) {
-                    const base = { P: { slot: 0, crediti: 0, dettagli: [] }, D: { slot: 0, crediti: 0, dettagli: [] }, C: { slot: 0, crediti: 0, dettagli: [] }, A: { slot: 0, crediti: 0, dettagli: [] } };
+                    const base = { P: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0 }, D: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0 }, C: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0 }, A: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0 } };
                     if (!valore) return base;
                     if (Array.isArray(valore)) {
                         valore.forEach(ex => {
@@ -515,7 +541,10 @@
                                     crediti: valore[r].crediti || 0,
                                     dettagli: Array.isArray(valore[r].dettagli)
                                         ? valore[r].dettagli.map(d => ({ nome: d.nome || '', costo: d.costo || 0 }))
-                                        : []
+                                        : [],
+                                    // Slot "Extra" degli avversari: non collegati ai giocatori "Altri" né alla
+                                    // rosa "Mio"; incidono solo sul conteggio Slot Riempiti Avversari in dashboard.
+                                    slotAvversariExtra: valore[r].slotAvversariExtra || 0
                                 };
                             }
                         });
@@ -578,6 +607,24 @@
                 const slotAltriDaRiempire = (ruolo) => {
                     const richiesti = NUM_AVVERSARI * (config.value.slot_ruoli[ruolo] || 0);
                     return Math.max(0, richiesti - countStato(ruolo, 'A'));
+                };
+
+                // Statistiche "Situazione Reparti" sugli slot avversari per ruolo: quanti sono già
+                // stati riempiti (giocatori "Altri" + eventuali Extra Avversari) rispetto al totale
+                // richiesto da tutti gli avversari, in percentuale, e la media di slot ancora mancanti
+                // per ogni singolo avversario. Gli Extra Avversari (scheda Extra) contano come slot
+                // riempiti in questa sola dinamica, senza toccare budget/spesa né la rosa "Mio".
+                const statoSlotAvversari = (ruolo) => {
+                    const totale = NUM_AVVERSARI * (config.value.slot_ruoli[ruolo] || 0);
+                    const riempiti = countStato(ruolo, 'A') + (extra.value[ruolo]?.slotAvversariExtra || 0);
+                    const mancanti = Math.max(0, totale - riempiti);
+                    return {
+                        riempiti,
+                        totale,
+                        pct: totale ? riempiti / totale : 0,
+                        mancanti,
+                        mediaMancante: NUM_AVVERSARI ? mancanti / NUM_AVVERSARI : 0
+                    };
                 };
 
                 const countCatStato = (ruolo, cat, stato) =>
@@ -928,7 +975,7 @@
                     creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
-                    mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire,
+                    mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo,
                     calcolaMaxD, onUpdateStato, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
