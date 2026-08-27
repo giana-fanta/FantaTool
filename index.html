@@ -434,20 +434,40 @@
                 // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
                 const PESO_CATEGORIA = { Occ: 0.5, Pun: 0.35, Tit: 0.25, Scm: 0.15 }; // default (Sca e altro) = 0.05
 
-                // --- Parametri di fine-tuning del motore MAX_D (proposte ①②③④) ---
+                // --- Parametri di fine-tuning del motore MAX_D (proposte ①②③④ + raffinamenti A/B/C/D) ---
                 // Sono correzioni moltiplicative "piccole" applicate SOPRA la formula originale,
                 // per non alterarne l'ordine di grandezza già validato: agiscono solo quando ci
                 // sono abbastanza dati (altrimenti restano neutre, cioè moltiplicano per 1).
+                //
+                // Raffinamenti A/B/C/D (discussi e concordati) rispetto alla versione originale:
+                //  A) i vecchi cutoff "a gradino" (minCampioneAltri, minStoricoMomentum) diventano
+                //     rampe di confidenza continue (sogliaConfidenza), per evitare salti innaturali
+                //     di valore appena si supera la soglia minima di osservazioni.
+                //  B) l'inflazione osservata (①) è ora pesata per CAT (PESO_INFLAZIONE) invece che
+                //     mediata in modo indifferenziato sull'intero ruolo.
+                //  C) il momentum (③) pesa le transazioni storiche per importanza di CAT, così un
+                //     accumulo di acquisti economici (Sca) non sposta il momentum di un Occ.
+                //  D) la pressione avversari (②) è ora corretta per la capacità di spesa residua
+                //     stimata degli avversari, e il rank (④) è corretto per la numerosità originaria
+                //     della CAT (evita il bonus pieno "automatico" quando resta un solo giocatore).
                 const FINETUNING = {
-                    alphaInflazioneOsservata: 0.20,   // ① peso della spesa realmente osservata sugli Altri
-                    minCampioneAltri: 2,               // ① n. minimo di acquisti Altri per attivare la correzione
-                    limiteInflazioneOsservata: 0.5,     // ① clamp dello scarto osservato/atteso (evita outlier)
-                    betaPressioneAvversari: 0.08,       // ② peso della pressione da slot avversari mancanti
-                    gammaMomentum: 0.25,                 // ③ peso dell'accelerazione/decelerazione recente
-                    minStoricoMomentum: 3,               // ③ n. minimo di transazioni nel ruolo per attivarlo
-                    finestraMomentum: 5,                 // ③ n. di transazioni recenti considerate "recenti"
-                    deltaRank: 0.12                       // ④ peso massimo del bonus di posizione in CAT
+                    alphaInflazioneOsservata: 0.20,     // ① peso della spesa realmente osservata sugli Altri
+                    n0Inflazione: 4,                     // A/B: n. osservazioni (pesate per CAT) per confidenza piena
+                    limiteInflazioneOsservata: 0.5,       // ① clamp dello scarto osservato/atteso (evita outlier)
+                    betaPressioneAvversari: 0.08,         // ② peso della pressione da slot avversari mancanti
+                    n0PressioneAvversari: 5,               // D: n. osservazioni Altri (totali) per confidenza piena
+                    capacitaAvversariMin: 0.5,             // D: clamp inferiore del fattore capacità di spesa Altri
+                    capacitaAvversariMax: 1.5,             // D: clamp superiore del fattore capacità di spesa Altri
+                    gammaMomentum: 0.25,                   // ③ peso dell'accelerazione/decelerazione recente
+                    n0Momentum: 5,                          // A: n. transazioni nel ruolo per confidenza piena
+                    finestraMomentum: 5,                     // ③ n. di transazioni recenti considerate "recenti"
+                    deltaRank: 0.12,                          // ④ peso massimo del bonus di posizione in CAT
+                    sogliaCampioneRank: 6                     // D: n. giocatori originari in CAT per confidenza piena
                 };
+
+                // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
+                // (nessuna correzione, formula originale), con n≥n0 satura a 1 (correzione piena).
+                const sogliaConfidenza = (n, n0) => n0 > 0 ? clampValore(n / n0, 0, 1) : 1;
 
                 async function sha256Hex(testo) {
                     const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(testo));
@@ -793,18 +813,67 @@
                     return creditiTot / numAcquisti;
                 });
 
-                // Versione per-ruolo di mediaCreditiAltri, usata dalla proposta ① (inflazione
-                // ibrida) del motore MAX_D: restituisce sia la media sia il numero di osservazioni,
-                // così la formula può astenersi dal correggere quando il campione è troppo piccolo.
-                const mediaCreditiAltriRuoloInfo = (ruolo) => {
-                    const altri = giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'A' && g.costo_reale > 0);
-                    const extraSlotAltri = extra.value[ruolo]?.slotAvversariExtra || 0;
-                    const extraCreditiAltri = extra.value[ruolo]?.creditiAvversariExtra || 0;
-                    const numAcquisti = altri.length + extraSlotAltri;
-                    if (!numAcquisti) return { media: 0, numAcquisti: 0 };
-                    const creditiTot = altri.reduce((s, g) => s + (g.costo_reale || 0), 0) + extraCreditiAltri;
-                    return { media: creditiTot / numAcquisti, numAcquisti };
+                // [Raffinamento B] Versione per CAT (usata dalla proposta ① - inflazione ibrida) del
+                // motore MAX_D: isola le osservazioni di una singola CAT, così l'inflazione osservata
+                // su un Occ non viene più "sporcata" da acquisti Sca economici nello stesso ruolo (o
+                // viceversa). Gli Extra Avversari (facoltativi, senza CAT propria) non sono attribuibili
+                // a una CAT specifica e non entrano in questo calcolo per-CAT (contribuiscono comunque
+                // alle statistiche globali di capacitaSpesaAltri, vedi sotto).
+                const mediaCreditiAltriCatInfo = (ruolo, cat) => {
+                    const altri = giocatori.value.filter(g => g.ruolo === ruolo && g.cat === cat && g.stato === 'A' && g.costo_reale > 0);
+                    if (!altri.length) return { media: 0, numAcquisti: 0 };
+                    const creditiTot = altri.reduce((s, g) => s + (g.costo_reale || 0), 0);
+                    return { media: creditiTot / altri.length, numAcquisti: altri.length };
                 };
+
+                // [Raffinamento D] Statistiche globali (tutti i ruoli) sugli acquisti "Altri": numero
+                // di osservazioni con costo noto e crediti totali osservati, usati per stimare quanto
+                // budget hanno ancora a disposizione gli avversari nel loro complesso.
+                const numOsservazioniAltriTotali = computed(() => {
+                    let n = 0;
+                    ['P', 'D', 'C', 'A'].forEach(r => {
+                        n += giocatori.value.filter(g => g.ruolo === r && g.stato === 'A' && g.costo_reale > 0).length;
+                        n += extra.value[r]?.slotAvversariExtra || 0;
+                    });
+                    return n;
+                });
+                const creditiSpesiAltriTotali = computed(() => {
+                    let tot = 0;
+                    ['P', 'D', 'C', 'A'].forEach(r => {
+                        const altri = giocatori.value.filter(g => g.ruolo === r && g.stato === 'A' && g.costo_reale > 0);
+                        tot += altri.reduce((s, g) => s + (g.costo_reale || 0), 0) + (extra.value[r]?.creditiAvversariExtra || 0);
+                    });
+                    return tot;
+                });
+
+                // [Raffinamento D] Slot avversari riempiti/totali su TUTTI i ruoli insieme, usato come
+                // proxy dell'avanzamento generale degli avversari nell'asta (per stimare quanto budget
+                // "ci si aspetterebbe" avessero ancora, con un'ipotesi di spesa uniforme nel tempo).
+                const statoSlotAvversariGlobale = computed(() => {
+                    let riempiti = 0, totale = 0;
+                    ['P', 'D', 'C', 'A'].forEach(r => {
+                        const s = statoSlotAvversari(r);
+                        riempiti += s.riempiti;
+                        totale += s.totale;
+                    });
+                    return { riempiti, totale, pct: totale ? riempiti / totale : 0 };
+                });
+
+                // [Raffinamento D] Fattore di capacità di spesa residua stimata degli avversari: >1 se
+                // hanno (a giudicare dai dati facoltativi inseriti) più budget residuo del previsto per
+                // il punto dell'asta in cui si trovano, <1 se ne hanno meno (es. hanno speso più del
+                // previsto altrove, o sono "al verde"). Resta vicino a 1 finché mancano abbastanza
+                // osservazioni (vedi n0PressioneAvversari), dato che i costi "Altri" sono facoltativi.
+                const capacitaSpesaAltri = computed(() => {
+                    const budgetTotaleAltri = NUM_AVVERSARI * (config.value.budget_iniziale || 0);
+                    if (budgetTotaleAltri <= 0) return 1;
+                    const progressoSlot = statoSlotAvversariGlobale.value.pct;
+                    const budgetAttesoResiduo = budgetTotaleAltri * (1 - progressoSlot);
+                    if (budgetAttesoResiduo <= 0) return 1;
+                    const budgetResiduoStimato = budgetTotaleAltri - creditiSpesiAltriTotali.value;
+                    const raw = budgetResiduoStimato / budgetAttesoResiduo;
+                    return clampValore(raw, FINETUNING.capacitaAvversariMin, FINETUNING.capacitaAvversariMax);
+                });
 
                 // Indice di inflazione GLOBALE usato dentro MAX_D: MAX(0.1, Crediti_Residui / Costo_Atteso_Rimanente)
                 const inflazioneGlobale = computed(() => {
@@ -917,19 +986,37 @@
                 // ③ Fattore di momentum: confronta il rapporto costo/max delle transazioni più
                 // recenti di un ruolo con la media storica dello stesso ruolo. Se l'asta sta
                 // accelerando su quel ruolo (si paga di più del solito) il fattore sale sopra 1,
-                // se sta rallentando scende sotto 1. Resta neutro (1) finché non c'è abbastanza
-                // storico, e viene comunque limitato per evitare correzioni eccessive.
-                const fattoreMomentum = (ruolo) => {
+                // se sta rallentando scende sotto 1.
+                // [Raffinamento A] Il vecchio cutoff secco (minStoricoMomentum) è ora una rampa di
+                // confidenza continua: con pochissimo storico la correzione è quasi nulla e cresce
+                // gradualmente, invece di "accendersi" di colpo al 100% alla terza transazione.
+                // [Raffinamento C] Le medie (recente e storica) sono pesate per l'importanza della CAT
+                // di ogni transazione (PESO_INFLAZIONE), e lo scarto risultante viene applicato al
+                // giocatore in valutazione in proporzione al peso della SUA CAT rispetto al peso medio
+                // delle transazioni osservate: un'accelerazione vista su acquisti Occ pesa molto sul
+                // momentum di un altro Occ, ma poco su quello di uno Sca, e viceversa.
+                const pesoCatMomentum = (cat) => PESO_INFLAZIONE[cat] !== undefined ? PESO_INFLAZIONE[cat] : 1;
+                const fattoreMomentum = (ruolo, catGiocatore) => {
                     const storicoRuolo = storicoAcquisti.value
                         .filter(t => t.ruolo === ruolo && t.rapporto > 0)
                         .sort((a, b) => a.ordine - b.ordine);
-                    if (storicoRuolo.length < FINETUNING.minStoricoMomentum) return 1;
+                    const confidenza = sogliaConfidenza(storicoRuolo.length, FINETUNING.n0Momentum);
+                    if (confidenza <= 0) return 1;
+                    const mediaPesata = (arr) => {
+                        const pesoTot = arr.reduce((s, t) => s + pesoCatMomentum(t.cat), 0);
+                        return pesoTot ? arr.reduce((s, t) => s + t.rapporto * pesoCatMomentum(t.cat), 0) / pesoTot : 0;
+                    };
                     const recenti = storicoRuolo.slice(-FINETUNING.finestraMomentum);
-                    const mediaRecente = recenti.reduce((s, t) => s + t.rapporto, 0) / recenti.length;
-                    const mediaStorica = storicoRuolo.reduce((s, t) => s + t.rapporto, 0) / storicoRuolo.length;
+                    const mediaRecente = mediaPesata(recenti);
+                    const mediaStorica = mediaPesata(storicoRuolo);
                     if (!mediaStorica) return 1;
                     const scarto = (mediaRecente - mediaStorica) / mediaStorica;
-                    return clampValore(1 + FINETUNING.gammaMomentum * scarto, 0.85, 1.2);
+                    const pesoMedioOsservazioni = storicoRuolo.reduce((s, t) => s + pesoCatMomentum(t.cat), 0) / storicoRuolo.length;
+                    const gammaEff = clampValore(
+                        FINETUNING.gammaMomentum * (pesoCatMomentum(catGiocatore) / (pesoMedioOsservazioni || 1)),
+                        0, FINETUNING.gammaMomentum * 2
+                    );
+                    return clampValore(1 + confidenza * gammaEff * scarto, 0.85, 1.2);
                 };
 
                 // Percentile (0-1) del MAX di un giocatore rispetto agli altri liberi della stessa
@@ -947,14 +1034,21 @@
                 // è in alto nella propria CAT (percentile) sia a quanto quella CAT è già scarsa
                 // (1 - F_ruolo, cioè F_ruolo basso = CAT quasi esaurita). Se la CAT è ancora
                 // abbondante il fattore resta vicino a 1 anche per i migliori.
+                // [Raffinamento D] Il percentile grezzo vale 1 anche quando resta un solo giocatore
+                // libero in quella CAT/ruolo, indipendentemente da quanti ce n'erano in partenza: un
+                // fattore di confidenza basato sulla numerosità ORIGINARIA della CAT (countCat, tutti
+                // gli stati) attenua il bonus quando quel campione era comunque troppo piccolo perché
+                // "essere il migliore rimasto" sia un segnale forte.
                 const fattoreRank = (g, fRuolo) => {
                     const percentile = percentileMaxInCat(g);
-                    return 1 + FINETUNING.deltaRank * percentile * (1 - fRuolo);
+                    const confCampione = sogliaConfidenza(countCat(g.ruolo, g.cat), FINETUNING.sogliaCampioneRank);
+                    return 1 + FINETUNING.deltaRank * percentile * (1 - fRuolo) * confCampione;
                 };
 
                 // Motore Ricalcolo MAX_D — parte dalla formula originale (replica esatta del foglio
-                // Excel P/D/C/A) e vi applica sopra 4 correzioni di fine-tuning (①②③④), pensate per
-                // affinare la stima senza cambiarne l'ordine di grandezza già validato.
+                // Excel P/D/C/A) e vi applica sopra 4 correzioni di fine-tuning (①②③④), ciascuna a sua
+                // volta raffinata (A/B/C/D, vedi commenti su FINETUNING e sulle singole funzioni) per
+                // affinare ulteriormente la stima senza cambiarne l'ordine di grandezza già validato.
                 // Restituisce sempre un numero (anche per uno "L" ipotetico), usato sia per la colonna
                 // MAX_D sia come base per l'ordinamento per prezzo.
                 const calcolaMaxDNumerico = (g) => {
@@ -971,8 +1065,16 @@
                     // leggermente il moltiplicatore di categoria (pesata come le altre CAT, così Occ
                     // "sente" la pressione più di Sca) quando gli avversari devono ancora comprare
                     // molto in quel ruolo — un segnale di domanda esterna che F_ruolo da solo non vede.
+                    // [Raffinamento D] Tanti slot mancanti non significano pressione al rialzo se gli
+                    // avversari non hanno più budget per riempirli: la pressione grezza viene quindi
+                    // corretta per la capacità di spesa residua stimata (capacitaSpesaAltri), attivata
+                    // gradualmente (sogliaConfidenza) solo quando ci sono abbastanza osservazioni sui
+                    // costi "Altri" (dato facoltativo) — altrimenti resta la sola pressione grezza.
                     const statoAvv = statoSlotAvversari(g.ruolo);
-                    const pressioneAvversari = statoAvv.totale ? statoAvv.mancanti / statoAvv.totale : 0;
+                    const pressioneAvversariGrezza = statoAvv.totale ? statoAvv.mancanti / statoAvv.totale : 0;
+                    const confPressione = sogliaConfidenza(numOsservazioniAltriTotali.value, FINETUNING.n0PressioneAvversari);
+                    const capacitaEff = 1 + confPressione * (capacitaSpesaAltri.value - 1);
+                    const pressioneAvversari = pressioneAvversariGrezza * capacitaEff;
                     const pesoCategoriaNorm = pesoCategoria / 0.5; // normalizzato sul peso massimo (Occ)
                     const moltiplicatoreCategoria = (1 + m.F * pesoCategoria) *
                         (1 + FINETUNING.betaPressioneAvversari * pesoCategoriaNorm * pressioneAvversari);
@@ -985,20 +1087,39 @@
                     }
 
                     // ① Inflazione ibrida: alla componente teorica (residuo/atteso, uguale per tutti)
-                    // si somma una correzione basata su quanto gli Altri stanno REALMENTE pagando in
-                    // quel ruolo rispetto al costo medio atteso per slot, attiva solo con un campione
-                    // minimo di osservazioni (altrimenti resta la sola inflazione teorica).
-                    const altriInfo = mediaCreditiAltriRuoloInfo(g.ruolo);
-                    const costoMedioAtteso = m.slotTot ? m.budgetTarget / m.slotTot : 0;
+                    // si somma una correzione basata su quanto gli Altri stanno REALMENTE pagando
+                    // rispetto al costo atteso, attivata gradualmente in base al campione disponibile.
+                    // [Raffinamento B] La correzione è pesata per CAT (invece che mediata sull'intero
+                    // ruolo): ogni CAT osservata (Occ, Pun, Tit, Scm, Sca) contribuisce allo scarto in
+                    // proporzione alla propria importanza (PESO_INFLAZIONE) e al proprio costo atteso
+                    // per slot (m.O/m.P/m.Q, già calcolati per Occ-Pun/Tit/Scm-Sca), così un pugno di
+                    // acquisti Sca economici non "sporca" più la stima per gli Occ dello stesso ruolo.
+                    // [Raffinamento A] Il vecchio cutoff secco (minCampioneAltri) è ora una rampa di
+                    // confidenza continua sul numero totale di osservazioni (di tutte le CAT insieme).
+                    const costoAttesoPerCat = (cat) => (cat === 'Occ' || cat === 'Pun') ? m.O : (cat === 'Tit' ? m.P : m.Q);
+                    let sommaPesata = 0, pesoTotale = 0, numOsservazioniRuolo = 0;
+                    CATEGORIE_PIE.forEach(cat => {
+                        const info = mediaCreditiAltriCatInfo(g.ruolo, cat);
+                        numOsservazioniRuolo += info.numAcquisti;
+                        if (!info.numAcquisti) return;
+                        const costoAtteso = costoAttesoPerCat(cat);
+                        if (!costoAtteso) return;
+                        const scartoCat = (info.media / costoAtteso) - 1;
+                        const peso = PESO_INFLAZIONE[cat] * info.numAcquisti;
+                        sommaPesata += scartoCat * peso;
+                        pesoTotale += peso;
+                    });
+                    const confInflazione = sogliaConfidenza(numOsservazioniRuolo, FINETUNING.n0Inflazione);
                     let inflazioneIbrida = inflazioneGlobale.value;
-                    if (altriInfo.numAcquisti >= FINETUNING.minCampioneAltri && costoMedioAtteso > 0) {
-                        const scarto = clampValore((altriInfo.media / costoMedioAtteso) - 1,
+                    if (pesoTotale > 0 && confInflazione > 0) {
+                        const scartoPesato = clampValore(sommaPesata / pesoTotale,
                             -FINETUNING.limiteInflazioneOsservata, FINETUNING.limiteInflazioneOsservata);
-                        inflazioneIbrida = inflazioneGlobale.value * (1 + FINETUNING.alphaInflazioneOsservata * scarto);
+                        inflazioneIbrida = inflazioneGlobale.value * (1 + FINETUNING.alphaInflazioneOsservata * confInflazione * scartoPesato);
                     }
 
-                    // ③ Momentum recente sul ruolo e ④ posizione del giocatore nella propria CAT.
-                    const momentum = fattoreMomentum(g.ruolo);
+                    // ③ Momentum recente sul ruolo (pesato per CAT, proposta C) e ④ posizione del
+                    // giocatore nella propria CAT (corretta per numerosità originaria, proposta D).
+                    const momentum = fattoreMomentum(g.ruolo, g.cat);
                     const rank = fattoreRank(g, m.F);
 
                     let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank);
