@@ -4,7 +4,7 @@
       "nome": "BUTEZ",
       "ruolo": "P",
       "cat": "Pun",
-      "max": 18,
+      "max": 19,
       "stato": "L",
       "costo_reale": 0,
       "note": "eventualmente da trio"
@@ -67,7 +67,7 @@
       "nome": "MAIGNAN",
       "ruolo": "P",
       "cat": "Occ",
-      "max": 25,
+      "max": 22,
       "stato": "L",
       "costo_reale": 0,
       "note": "da trio"
@@ -94,7 +94,7 @@
       "nome": "MERET / MILINKOVIC",
       "ruolo": "P",
       "cat": "Occ",
-      "max": 30,
+      "max": 20,
       "stato": "L",
       "costo_reale": 0,
       "note": "da trio"
@@ -283,7 +283,7 @@
       "nome": "BUONGIORNO",
       "ruolo": "D",
       "cat": "Tit",
-      "max": 3,
+      "max": 2,
       "stato": "L",
       "costo_reale": 0,
       "note": "INF. Recupera a metà Novembre"
@@ -373,7 +373,7 @@
       "nome": "COUTO",
       "ruolo": "D",
       "cat": "Pun",
-      "max": 10,
+      "max": 8,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -562,7 +562,7 @@
       "nome": "HERMOSO",
       "ruolo": "D",
       "cat": "Pun",
-      "max": 10,
+      "max": 8,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -886,7 +886,7 @@
       "nome": "PEDERSEN",
       "ruolo": "D",
       "cat": "Pun",
-      "max": 8,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": "con Fortini"
@@ -1219,7 +1219,7 @@
       "nome": "BALDANZI",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 15,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": "Piaz."
@@ -1273,7 +1273,7 @@
       "nome": "BERNARDESCHI",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 15,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": "con Odgaard, Piaz."
@@ -1336,7 +1336,7 @@
       "nome": "CANCELLIERI",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 18,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1579,7 +1579,7 @@
       "nome": "GUDMUNSSON",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 35,
+      "max": 22,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig., Piaz."
@@ -1732,7 +1732,7 @@
       "nome": "McKENNIE",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 11,
+      "max": 14,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1813,7 +1813,7 @@
       "nome": "ODGAARD",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 9,
+      "max": 8,
       "stato": "L",
       "costo_reale": 0,
       "note": "solo con Bernardeschi"
@@ -1930,7 +1930,7 @@
       "nome": "RODRIGUEZ Je.",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 15,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1975,7 +1975,7 @@
       "nome": "SAMARDZIC",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 28,
+      "max": 23,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2011,7 +2011,7 @@
       "nome": "SUCIC",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 10,
+      "max": 7,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2020,7 +2020,7 @@
       "nome": "TAYLOR K.",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 8,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2119,7 +2119,7 @@
       "nome": "ZALEWSKI",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 10,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2137,7 +2137,7 @@
       "nome": "ZANIOLO",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 20,
+      "max": 19,
       "stato": "L",
       "costo_reale": 0,
       "note": "Piaz., INF. Recupera a fine Settembre"
@@ -2191,7 +2191,7 @@
       "nome": "BERARDI",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 65,
+      "max": 60,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rischio Inf., Rig., Piaz."
@@ -2317,7 +2317,7 @@
       "nome": "DYBALA",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 70,
+      "max": 56,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rischio Inf., Piaz."
@@ -2362,7 +2362,7 @@
       "nome": "HOJLUND",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 70,
+      "max": 108,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2389,7 +2389,7 @@
       "nome": "KOLO MUANI",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 230,
+      "max": 190,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2569,7 +2569,7 @@
       "nome": "RAMOS G.",
       "ruolo": "A",
       "cat": "Occ",
-      "max": 65,
+      "max": 80,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2578,7 +2578,7 @@
       "nome": "RASPADORI",
       "ruolo": "A",
       "cat": "Scm",
-      "max": 30,
+      "max": 38,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2650,7 +2650,7 @@
       "nome": "THURAM M.",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 150,
+      "max": 180,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2668,7 +2668,7 @@
       "nome": "VARELA G.",
       "ruolo": "A",
       "cat": "Scm",
-      "max": 25,
+      "max": 18,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2677,7 +2677,7 @@
       "nome": "VITINHA",
       "ruolo": "A",
       "cat": "Tit",
-      "max": 20,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2695,7 +2695,7 @@
       "nome": "YILDIZ",
       "ruolo": "A",
       "cat": "Occ",
-      "max": 100,
+      "max": 50,
       "stato": "L",
       "costo_reale": 0,
       "note": "INF. Recupera a Novembre"
