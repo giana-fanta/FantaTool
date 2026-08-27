@@ -269,18 +269,18 @@
             <table>
                 <tr>
                     <th style="width: 25%" class="th-ordinabile" @click="cambiaOrdinamento('nome')">NOME{{ iconaOrdinamento('nome') }}</th>
-                    <th style="width: 10%">CAT</th>
-                    <th style="width: 10%" class="th-ordinabile" @click="cambiaOrdinamento('max')">MAX{{ iconaOrdinamento('max') }}</th>
-                    <th style="width: 15%" class="th-ordinabile" @click="cambiaOrdinamento('max_d')">MAX_D{{ iconaOrdinamento('max_d') }}</th>
+                    <th style="width: 10%" v-if="!datiSensibiliNascosti">CAT</th>
+                    <th style="width: 10%" class="th-ordinabile" v-if="!datiSensibiliNascosti" @click="cambiaOrdinamento('max')">MAX{{ iconaOrdinamento('max') }}</th>
+                    <th style="width: 15%" class="th-ordinabile" v-if="!datiSensibiliNascosti" @click="cambiaOrdinamento('max_d')">MAX_D{{ iconaOrdinamento('max_d') }}</th>
                     <th style="width: 15%">STATO (L/M/A)</th>
                     <th style="width: 15%" class="th-ordinabile" @click="cambiaOrdinamento('costo_reale')">COSTO REALE{{ iconaOrdinamento('costo_reale') }}</th>
                     <th style="width: 10%">NOTE</th>
                 </tr>
                 <tr v-for="g in giocatoriFiltered" :key="g.nome" :class="'stato-' + g.stato">
                     <td><strong>{{ g.nome }}</strong></td>
-                    <td>{{ g.cat }}</td>
-                    <td>{{ g.max }}</td>
-                    <td><strong>{{ calcolaMaxD(g) }}</strong></td>
+                    <td v-if="!datiSensibiliNascosti">{{ g.cat }}</td>
+                    <td v-if="!datiSensibiliNascosti">{{ g.max }}</td>
+                    <td v-if="!datiSensibiliNascosti"><strong>{{ calcolaMaxD(g) }}</strong></td>
                     <td>
                         <select v-model="g.stato" @change="onUpdateStato(g)">
                             <option value="L">Liberi (L)</option>
@@ -675,10 +675,17 @@
                 // Media crediti spesi dall'utente (Mio) confrontata con la media di quanto spendono
                 // gli "Altri" (calcolata solo sui giocatori "Altri" per cui è stato inserito un costo,
                 // essendo un dato facoltativo che l'utente compila quando lo conosce).
+                // Gli acquisti Extra (scheda "Extra") sono acquisti del "Mio" a tutti gli effetti
+                // (compaiono anche in Mia Squadra), quindi vengono inclusi nella media: ogni slot
+                // extra conta come un acquisto in più, e i relativi crediti si sommano a quelli spesi.
                 const mediaCreditiMiei = computed(() => {
                     const miei = giocatori.value.filter(g => g.stato === 'M');
-                    if (!miei.length) return 0;
-                    return miei.reduce((s, g) => s + (g.costo_reale || 0), 0) / miei.length;
+                    const extraSlotTot = ['P', 'D', 'C', 'A'].reduce((s, r) => s + (extra.value[r]?.slot || 0), 0);
+                    const extraCreditiTot = ['P', 'D', 'C', 'A'].reduce((s, r) => s + (extra.value[r]?.crediti || 0), 0);
+                    const numAcquisti = miei.length + extraSlotTot;
+                    if (!numAcquisti) return 0;
+                    const creditiTot = miei.reduce((s, g) => s + (g.costo_reale || 0), 0) + extraCreditiTot;
+                    return creditiTot / numAcquisti;
                 });
                 const mediaCreditiAltri = computed(() => {
                     const altri = giocatori.value.filter(g => g.stato === 'A' && g.costo_reale > 0);
