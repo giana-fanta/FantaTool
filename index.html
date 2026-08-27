@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asta Live - Fanta 2627</title>
+    <title>Asta Live - Fantacalcio </title>
     <!-- Importazione Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -177,7 +177,7 @@
                     <div class="value">{{ round2(prezzoMedioReale) }}</div>
                 </div>
                 <div class="card" :class="{ 'card-positive': mediaCreditiAltri > 0 && mediaCreditiMiei < mediaCreditiAltri, 'card-negative': mediaCreditiAltri > 0 && mediaCreditiMiei > mediaCreditiAltri }">
-                    <h3>Media Spesa: Io vs Altri</h3>
+                    <h3>Spesa Media: Io vs Altri</h3>
                     <div class="value" :class="{ 'dato-nascosto': datiSensibiliNascosti }">
                         {{ round2(mediaCreditiMiei) }} vs {{ mediaCreditiAltri > 0 ? round2(mediaCreditiAltri) : 'n/d' }}
                     </div>
@@ -190,7 +190,7 @@
                 <tr>
                     <th>Ruolo</th><th>Slot Tot</th><th>Liberi</th><th>Occupati</th>
                     <th>Budget</th><th>Spesi</th><th>Residui</th><th>% Budget</th>
-                    <th>Crediti / Slot (reali)</th><th>Slot Riempiti Avversari</th><th>Segnale</th>
+                    <th>Crediti / Slot (reali)</th><th>Slot Riempiti Avversari - Slot Medi Rimanenti</th><th>Segnale</th>
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
                     <td><strong>{{ ruolo }}</strong></td>
