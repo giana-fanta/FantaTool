@@ -110,7 +110,23 @@
         .slot-avv-stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
         .slot-avv-item { white-space: nowrap; }
         .slot-avv-sep { color: var(--text-muted); }
-        .campo-extra-avv input { max-width: 100px; }
+        .campo-extra-avv input[type="number"] { max-width: 100px; }
+
+        /* Stepper +/- per campi numerici (Extra) */
+        .qty-stepper { display: flex; align-items: center; gap: 6px; }
+        .qty-stepper input[type="number"] { text-align: center; }
+        .qty-btn { flex-shrink: 0; width: 28px; height: 28px; border: 1px solid var(--border); background: var(--surface-alt); color: #ced3dd; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px; line-height: 1; padding: 0; }
+        .qty-btn:hover { background: #343a46; border-color: #4d5566; }
+        .qty-btn:active { background: var(--primary); color: #14171c; }
+
+        /* Icona Preferito (stella) */
+        .star-btn { background: none; border: none; cursor: pointer; padding: 2px 4px; font-size: 18px; line-height: 1; color: var(--text-muted); transition: color 0.15s, transform 0.1s; }
+        .star-btn:hover { color: var(--squadra); transform: scale(1.15); }
+        .star-btn.active { color: var(--squadra); }
+        .col-star { width: 5%; text-align: center; }
+
+        /* Colonna NOTE modificabile: l'input non deve sembrare "disabilitato" come le altre celle */
+        td input[type="text"].input-note { font-size: 12px; }
     </style>
 </head>
 <body>
@@ -131,7 +147,7 @@
 
         <div class="tabs">
             <div v-for="tab in tabs" :key="tab" 
-                 :class="['tab', { active: currentTab === tab, 'tab-squadra': tab === 'Mia_Squadra' }]" 
+                 :class="['tab', { active: currentTab === tab, 'tab-squadra': tab === 'Mia_Squadra' || tab === 'Salvati' }]" 
                  @click="currentTab = tab">
                 {{ tab.replace('_', ' ') }}
             </div>
@@ -283,7 +299,8 @@
             </div>
             <table>
                 <tr>
-                    <th style="width: 25%" class="th-ordinabile" @click="cambiaOrdinamento('nome')">NOME{{ iconaOrdinamento('nome') }}</th>
+                    <th class="col-star">★</th>
+                    <th style="width: 20%" class="th-ordinabile" @click="cambiaOrdinamento('nome')">NOME{{ iconaOrdinamento('nome') }}</th>
                     <th style="width: 10%" v-if="!datiSensibiliNascosti">CAT</th>
                     <th style="width: 10%" class="th-ordinabile" v-if="!datiSensibiliNascosti" @click="cambiaOrdinamento('max')">MAX{{ iconaOrdinamento('max') }}</th>
                     <th style="width: 15%" class="th-ordinabile" v-if="!datiSensibiliNascosti" @click="cambiaOrdinamento('max_d')">MAX_D{{ iconaOrdinamento('max_d') }}</th>
@@ -292,6 +309,11 @@
                     <th style="width: 10%">NOTE</th>
                 </tr>
                 <tr v-for="g in giocatoriFiltered" :key="g.nome" :class="'stato-' + g.stato">
+                    <td class="col-star">
+                        <button type="button" class="star-btn" :class="{ active: g.preferito }"
+                                @click="togglePreferito(g)"
+                                :title="g.preferito ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'">{{ g.preferito ? '★' : '☆' }}</button>
+                    </td>
                     <td><strong>{{ g.nome }}</strong></td>
                     <td v-if="!datiSensibiliNascosti">{{ g.cat }}</td>
                     <td v-if="!datiSensibiliNascosti">{{ g.max }}</td>
@@ -308,7 +330,9 @@
                                :disabled="g.stato === 'L'" 
                                @input="onCostoRealeChange(g)">
                     </td>
-                    <td style="font-size: 11px;">{{ g.note }}</td>
+                    <td>
+                        <input type="text" class="input-note" v-model="g.note" placeholder="Note" @input="salvaStato">
+                    </td>
                 </tr>
             </table>
         </div>
@@ -323,8 +347,20 @@
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo">
                     <td><strong>{{ ruolo }}</strong></td>
-                    <td><input type="number" min="0" v-model.number="extra[ruolo].slot" @input="onSlotExtraChange(ruolo)"></td>
-                    <td><input type="number" min="0" v-model.number="extra[ruolo].crediti" @input="salvaStato"></td>
+                    <td>
+                        <div class="qty-stepper">
+                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'slot', -1)">−</button>
+                            <input type="number" min="0" v-model.number="extra[ruolo].slot" @input="onSlotExtraChange(ruolo)">
+                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'slot', 1)">+</button>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="qty-stepper">
+                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'crediti', -1)">−</button>
+                            <input type="number" min="0" v-model.number="extra[ruolo].crediti" @input="salvaStato">
+                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'crediti', 1)">+</button>
+                        </div>
+                    </td>
                 </tr>
             </table>
 
@@ -336,8 +372,20 @@
                 </tr>
                 <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'extra-avv-' + ruolo">
                     <td><strong>{{ ruolo }}</strong></td>
-                    <td class="campo-extra-avv"><input type="number" min="0" v-model.number="extra[ruolo].slotAvversariExtra" @input="salvaStato"></td>
-                    <td class="campo-extra-avv"><input type="number" min="0" v-model.number="extra[ruolo].creditiAvversariExtra" @input="salvaStato"></td>
+                    <td class="campo-extra-avv">
+                        <div class="qty-stepper">
+                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'slotAvversariExtra', -1)">−</button>
+                            <input type="number" min="0" v-model.number="extra[ruolo].slotAvversariExtra" @input="salvaStato">
+                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'slotAvversariExtra', 1)">+</button>
+                        </div>
+                    </td>
+                    <td class="campo-extra-avv">
+                        <div class="qty-stepper">
+                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'creditiAvversariExtra', -1)">−</button>
+                            <input type="number" min="0" v-model.number="extra[ruolo].creditiAvversariExtra" @input="salvaStato">
+                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'creditiAvversariExtra', 1)">+</button>
+                        </div>
+                    </td>
                 </tr>
             </table>
         </div>
@@ -359,6 +407,30 @@
                     </tr>
                     <tr v-if="!giocatoriMieiPerRuolo(ruolo).length && !extraDettagli(ruolo).length">
                         <td colspan="2" style="text-align:center; color: var(--text-muted);">Nessun giocatore</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- SALVATI (PREFERITI) -->
+        <div v-if="currentTab === 'Salvati'" class="table-container squadra-panel">
+            <h2>Giocatori Salvati</h2>
+            <p class="note">Giocatori contrassegnati con ★ nelle schede P/D/C/A, raggruppati per ruolo. Clicca sulla stella per rimuovere un giocatore dai salvati.</p>
+            <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'salvati-' + ruolo" class="squadra-ruolo">
+                <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
+                <table>
+                    <tr><th class="col-star">★</th><th>Nome</th><th>MAX_D</th><th>STATO</th><th>NOTE</th></tr>
+                    <tr v-for="g in giocatoriPreferitiPerRuolo(ruolo)" :key="g.nome" :class="'stato-' + g.stato">
+                        <td class="col-star">
+                            <button type="button" class="star-btn active" @click="togglePreferito(g)" title="Rimuovi dai preferiti">★</button>
+                        </td>
+                        <td>{{ g.nome }}</td>
+                        <td><strong>{{ calcolaMaxD(g) }}</strong></td>
+                        <td>{{ g.stato === 'L' ? 'Libero' : (g.stato === 'M' ? 'Mio' : 'Altri') }}</td>
+                        <td style="font-size: 11px;">{{ g.note }}</td>
+                    </tr>
+                    <tr v-if="!giocatoriPreferitiPerRuolo(ruolo).length">
+                        <td colspan="5" style="text-align:center; color: var(--text-muted);">Nessun giocatore salvato</td>
                     </tr>
                 </table>
             </div>
@@ -400,7 +472,7 @@
 
         createApp({
             setup() {
-                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra'];
+                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra', 'Salvati'];
                 const currentTab = ref('Control_Panel');
                 const datiSensibiliNascosti = ref(false);
                 
@@ -618,6 +690,14 @@
                     return base;
                 }
 
+                // Garantisce che ogni giocatore abbia il campo "preferito" (booleano) anche se
+                // proviene da un dati.json o da un backup/localStorage precedenti all'introduzione
+                // della funzione "Salvati": non influisce su nessun calcolo, è solo un flag UI.
+                const normalizzaGiocatori = (lista) => {
+                    (lista || []).forEach(g => { if (g.preferito === undefined) g.preferito = false; });
+                    return lista;
+                };
+
                 // Inizializzazione Dati (da LocalStorage o fetch JSON)
                 onMounted(async () => {
                     if (passwordImpostata.value && sessionStorage.getItem('fanta_locked') === '1') {
@@ -627,7 +707,7 @@
                     const dbSalvato = localStorage.getItem('fanta_db');
                     if (dbSalvato) {
                         const parsed = JSON.parse(dbSalvato);
-                        giocatori.value = parsed.giocatori;
+                        giocatori.value = normalizzaGiocatori(parsed.giocatori);
                         extra.value = normalizzaExtra(parsed.extra);
                         config.value = parsed.config;
                         // Retrocompatibile: backup/localStorage precedenti non hanno questi campi.
@@ -637,7 +717,7 @@
                         try {
                             const res = await fetch('dati.json');
                             const data = await res.json();
-                            giocatori.value = data.giocatori;
+                            giocatori.value = normalizzaGiocatori(data.giocatori);
                             extra.value = normalizzaExtra(data.extra);
                             config.value = data.config;
                             storicoAcquisti.value = [];
@@ -966,6 +1046,29 @@
                         .filter(g => g.ruolo === ruolo && g.stato === 'M')
                         .sort((a, b) => a.nome.localeCompare(b.nome));
 
+                // Attiva/disattiva il flag "Preferito" (stella) su un giocatore: puramente
+                // visuale/UI, non incide su nessun calcolo o metrica.
+                const togglePreferito = (g) => {
+                    g.preferito = !g.preferito;
+                    salvaStato();
+                };
+
+                // Giocatori preferiti di un ruolo, ordinati per nome, per la scheda Salvati.
+                const giocatoriPreferitiPerRuolo = (ruolo) =>
+                    giocatori.value
+                        .filter(g => g.ruolo === ruolo && g.preferito)
+                        .sort((a, b) => a.nome.localeCompare(b.nome));
+
+                // Incrementa/decrementa di "delta" un campo numerico della scheda Extra
+                // (slot, crediti, slotAvversariExtra, creditiAvversariExtra), senza scendere
+                // sotto zero. Riusa gli stessi handler già collegati agli input numerici, così
+                // il comportamento (allineamento righe "dettagli", salvataggio) resta identico.
+                const stepExtra = (ruolo, campo, delta) => {
+                    const item = extra.value[ruolo];
+                    item[campo] = Math.max(0, (item[campo] || 0) + delta);
+                    if (campo === 'slot') onSlotExtraChange(ruolo); else salvaStato();
+                };
+
                 const clampValore = (v, min, max) => Math.max(min, Math.min(max, v));
 
                 // Registra/aggiorna una transazione (Mio o Altri) nello storico usato dal fattore
@@ -1282,7 +1385,7 @@
                                 return;
                             }
                             if (!confirm("Importare questo backup? I dati attuali verranno sovrascritti.")) return;
-                            giocatori.value = parsed.giocatori;
+                            giocatori.value = normalizzaGiocatori(parsed.giocatori);
                             extra.value = normalizzaExtra(parsed.extra);
                             config.value = parsed.config;
                             // Retrocompatibile: backup più vecchi non hanno lo storico transazioni.
@@ -1316,7 +1419,7 @@
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     composizioneLiberiCat, conicGradientCat,
-                    onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo,
+                    onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo, togglePreferito, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, onUpdateStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
