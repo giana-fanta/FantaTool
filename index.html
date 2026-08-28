@@ -1568,7 +1568,20 @@
                         .filter(t => t.ruolo === ruolo && t.rapporto > 0)
                         .sort((a, b) => a.ordine - b.ordine);
                     const n = storicoRuolo.length;
-                    const confidenza = sogliaConfidenza(n, FINETUNING.n0Momentum);
+                    if (!n) return 1;
+                    const pesoTotaleStorico = storicoRuolo.reduce((s, t) => s + pesoCatMomentum(t.cat), 0);
+                    const pesoMedioOsservazioni = pesoTotaleStorico / n;
+                    const pesoCatTarget = pesoCatMomentum(catGiocatore);
+                    // [Fix confidenza pesata per CAT] Stessa correzione applicata a ①: il vecchio "n"
+                    // grezzo (tutte le transazioni del ruolo, qualunque CAT) saturava la confidenza del
+                    // momentum anche quando l'evidenza reale sulla CAT del giocatore in esame era 1 sola
+                    // transazione isolata, purché altre transazioni Scm/Sca (abbondanti, peso basso)
+                    // riempissero il conteggio. Qui si usa lo stesso pesoTotaleStorico già calcolato,
+                    // riespresso in "transazioni equivalenti della CAT target": evidenza concentrata su
+                    // CAT diverse da catGiocatore pesa meno nella confidenza (ma resta comunque nella
+                    // stima del momentum stesso, invariata sotto).
+                    const osservazioniEffettiveMomentum = pesoTotaleStorico / (pesoCatTarget || 1);
+                    const confidenza = sogliaConfidenza(osservazioniEffettiveMomentum, FINETUNING.n0Momentum);
                     if (confidenza <= 0) return 1;
                     // mediaPesata: se pesoRecency è omesso calcola la media storica "piatta" (solo
                     // pesata per CAT, nessun decadimento temporale) usata come baseline di confronto;
@@ -1588,9 +1601,8 @@
                     const mediaRecente = mediaPesata(true);
                     if (!mediaStorica) return 1;
                     const scarto = (mediaRecente - mediaStorica) / mediaStorica;
-                    const pesoMedioOsservazioni = storicoRuolo.reduce((s, t) => s + pesoCatMomentum(t.cat), 0) / n;
                     const gammaEff = clampValore(
-                        FINETUNING.gammaMomentum * (pesoCatMomentum(catGiocatore) / (pesoMedioOsservazioni || 1)),
+                        FINETUNING.gammaMomentum * (pesoCatTarget / (pesoMedioOsservazioni || 1)),
                         0, FINETUNING.gammaMomentum * 2
                     );
                     return clampValore(1 + confidenza * gammaEff * scarto, 0.85, 1.2);
@@ -1779,10 +1791,9 @@
                     // [Raffinamento A] Il vecchio cutoff secco (minCampioneAltri) è ora una rampa di
                     // confidenza continua sul numero totale di osservazioni (di tutte le CAT insieme).
                     const costoAttesoPerCat = (cat) => (cat === 'Occ' || cat === 'Pun') ? m.O : (cat === 'Tit' ? m.P : m.Q);
-                    let sommaPesata = 0, pesoTotale = 0, numOsservazioniRuolo = 0;
+                    let sommaPesata = 0, pesoTotale = 0;
                     CATEGORIE_PIE.forEach(cat => {
                         const info = mediaCreditiAltriCatInfo(g.ruolo, cat);
-                        numOsservazioniRuolo += info.numAcquisti;
                         if (!info.numAcquisti) return;
                         const costoAtteso = costoAttesoPerCat(cat);
                         if (!costoAtteso) return;
@@ -1791,7 +1802,19 @@
                         sommaPesata += scartoCat * peso;
                         pesoTotale += peso;
                     });
-                    const confInflazione = sogliaConfidenza(numOsservazioniRuolo, FINETUNING.n0Inflazione);
+                    // [Fix confidenza pesata per CAT] La vecchia versione contava le osservazioni
+                    // "Altri" in modo grezzo su TUTTE le CAT insieme (numOsservazioniRuolo), quindi
+                    // un pugno di transazioni Scm/Sca (peso 1-2, abbondanti per natura) bastava da sole
+                    // a saturare la confidenza a 1 anche per un Occ (peso 5) con una sola osservazione
+                    // isolata — facendo pesare quell'unico dato anomalo a piena forza. Qui la confidenza
+                    // usa la stessa evidenza pesata (pesoTotale) già calcolata sopra, riespressa in
+                    // "osservazioni equivalenti della CAT del giocatore in esame" (dividendo per il suo
+                    // stesso peso categoria): evidenza dominata da CAT diverse da g.cat pesa meno,
+                    // evidenza concentrata proprio sulla CAT di g pesa come prima. Nessuna nuova
+                    // costante: riusa PESO_INFLAZIONE, già validato concettualmente nel motore.
+                    const pesoCategoriaInflazione = PESO_INFLAZIONE[g.cat] || 1;
+                    const osservazioniEffettiveInflazione = pesoTotale / pesoCategoriaInflazione;
+                    const confInflazione = sogliaConfidenza(osservazioniEffettiveInflazione, FINETUNING.n0Inflazione);
                     let inflazioneIbrida = inflazioneGlobale.value;
                     if (pesoTotale > 0 && confInflazione > 0) {
                         const scartoPesato = clampValore(sommaPesata / pesoTotale,
@@ -1863,19 +1886,26 @@
                     const m = metrics.value[g.ruolo];
                     if (m.slotLiberi <= 0) return 0;
 
-                    // ① stessa fonte dati di calcolaMaxDNumerico: osservazioni "Altri" per CAT nel ruolo
-                    let numOsservazioniRuolo = 0;
+                    // ① stessa fonte dati e stessa correzione "per CAT del giocatore" di calcolaMaxDNumerico
+                    // (vedi commento lì): l'evidenza pesata viene riespressa in osservazioni equivalenti
+                    // della CAT di g, non contata a crudo su tutte le CAT insieme.
+                    let pesoTotaleInflazione = 0;
                     CATEGORIE_PIE.forEach(cat => {
-                        numOsservazioniRuolo += mediaCreditiAltriCatInfo(g.ruolo, cat).numAcquisti;
+                        const info = mediaCreditiAltriCatInfo(g.ruolo, cat);
+                        if (info.numAcquisti) pesoTotaleInflazione += PESO_INFLAZIONE[cat] * info.numAcquisti;
                     });
-                    const confInflazione = sogliaConfidenza(numOsservazioniRuolo, FINETUNING.n0Inflazione);
+                    const osservazioniEffettiveInflazione = pesoTotaleInflazione / (PESO_INFLAZIONE[g.cat] || 1);
+                    const confInflazione = sogliaConfidenza(osservazioniEffettiveInflazione, FINETUNING.n0Inflazione);
 
                     // ② stesso conteggio globale usato per attivare la correzione di capacitaSpesaAltri
                     const confPressione = sogliaConfidenza(numOsservazioniAltriTotali.value, FINETUNING.n0PressioneAvversari);
 
-                    // ③ stesso storico transazioni (Mio + Altri) filtrato per ruolo, usato dal momentum
-                    const nMomentum = storicoAcquisti.value.filter(t => t.ruolo === g.ruolo && t.rapporto > 0).length;
-                    const confMomentum = sogliaConfidenza(nMomentum, FINETUNING.n0Momentum);
+                    // ③ stesso storico transazioni filtrato per ruolo, riespresso in transazioni
+                    // equivalenti della CAT di g (vedi commento in fattoreMomentum).
+                    const storicoRuoloConf = storicoAcquisti.value.filter(t => t.ruolo === g.ruolo && t.rapporto > 0);
+                    const pesoTotaleMomentumConf = storicoRuoloConf.reduce((s, t) => s + pesoCatMomentum(t.cat), 0);
+                    const osservazioniEffettiveMomentum = pesoTotaleMomentumConf / (pesoCatMomentum(g.cat) || 1);
+                    const confMomentum = sogliaConfidenza(osservazioniEffettiveMomentum, FINETUNING.n0Momentum);
 
                     // ④ stessa numerosità originaria della CAT usata dal fattore di rank
                     const confRank = sogliaConfidenza(countCat(g.ruolo, g.cat), FINETUNING.sogliaCampioneRank);
