@@ -1510,16 +1510,19 @@
                 // Registra/aggiorna una transazione (Mio o Altri) nello storico usato dal fattore
                 // di momentum (proposta ③). Se il giocatore è già presente aggiorna solo il
                 // rapporto costo/max mantenendo l'ordine originale; altrimenti crea una nuova voce
-                // con numero d'ordine progressivo.
+                // con numero d'ordine progressivo. Lo stato ('M' o 'A') viene salvato nel record:
+                // fattoreMomentum/dispersioneMomentum filtrano su stato === 'A' per evitare che i
+                // propri acquisti (potenzialmente sopra il proprio max) si autoalimentino nel
+                // segnale di mercato, simmetricamente a quanto fa già mediaCreditiAltriCatInfo (①).
                 const registraTransazione = (g) => {
                     if (!g.max) return;
                     const rapporto = (g.costo_reale || 0) / g.max;
                     const idx = storicoAcquisti.value.findIndex(t => t.nome === g.nome);
                     if (idx >= 0) {
-                        storicoAcquisti.value[idx] = { ...storicoAcquisti.value[idx], ruolo: g.ruolo, cat: g.cat, rapporto };
+                        storicoAcquisti.value[idx] = { ...storicoAcquisti.value[idx], ruolo: g.ruolo, cat: g.cat, rapporto, stato: g.stato };
                     } else {
                         prossimoOrdineAcquisto.value += 1;
-                        storicoAcquisti.value.push({ ordine: prossimoOrdineAcquisto.value, nome: g.nome, ruolo: g.ruolo, cat: g.cat, rapporto });
+                        storicoAcquisti.value.push({ ordine: prossimoOrdineAcquisto.value, nome: g.nome, ruolo: g.ruolo, cat: g.cat, rapporto, stato: g.stato });
                     }
                 };
 
@@ -1555,7 +1558,7 @@
                 // non modifica il fattoreMomentum centrale: serve a costruire un intervallo di incertezza.
                 const dispersioneMomentum = (ruolo, catGiocatore) => {
                     const storico = storicoAcquisti.value
-                        .filter(t => t.ruolo === ruolo && t.cat === catGiocatore && t.rapporto > 0 && Number.isFinite(t.rapporto))
+                        .filter(t => t.ruolo === ruolo && t.cat === catGiocatore && t.stato === 'A' && t.rapporto > 0 && Number.isFinite(t.rapporto))
                         .map(t => t.rapporto);
                     if (storico.length <= 1) return { deviazioneStandard: 0, max: storico[0] || 0, n: storico.length };
                     const media = storico.reduce((s, v) => s + v, 0) / storico.length;
@@ -1565,7 +1568,7 @@
 
                 const fattoreMomentum = (ruolo, catGiocatore) => {
                     const storicoRuolo = storicoAcquisti.value
-                        .filter(t => t.ruolo === ruolo && t.rapporto > 0)
+                        .filter(t => t.ruolo === ruolo && t.stato === 'A' && t.rapporto > 0)
                         .sort((a, b) => a.ordine - b.ordine);
                     const n = storicoRuolo.length;
                     if (!n) return 1;
