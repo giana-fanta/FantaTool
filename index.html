@@ -138,8 +138,20 @@
         .conteso-checkbox { width: auto !important; margin: 0; accent-color: var(--danger); }
         .badge-interval { display: inline-block; margin-left: 5px; color: var(--text-muted); font-size: 11px; white-space: nowrap; cursor: help; }
 
-        /* Colonna NOTE modificabile: l'input non deve sembrare "disabilitato" come le altre celle */
-        td input[type="text"].input-note { font-size: 12px; }
+        /* Note: nella tabella resta solo un'icona compatta; il testo completo viene gestito nel modale. */
+        .note-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); cursor: pointer; padding: 5px 8px; font-size: 16px; line-height: 1; transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s; }
+        .note-btn:hover { background: var(--surface-alt); border-color: #4d5566; color: var(--primary); transform: scale(1.05); }
+        .note-btn.has-note { color: var(--primary); border-color: var(--primary); }
+        .col-note { width: 7%; text-align: center; }
+        .note-modal { position: fixed; inset: 0; background: rgba(8,9,12,0.72); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; }
+        .note-modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: min(680px, 94vw); max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 15px 50px rgba(0,0,0,0.6); }
+        .note-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+        .note-modal-header strong { color: #e6e9f0; font-size: 16px; }
+        .note-modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 22px; line-height: 1; padding: 2px 6px; }
+        .note-modal-close:hover { color: #e6e9f0; }
+        .note-modal-body { padding: 16px 18px; }
+        .note-modal-body textarea { width: 100%; min-height: 260px; resize: vertical; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-alt); color: #ced3dd; font: inherit; line-height: 1.45; }
+        .note-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px 16px; border-top: 1px solid var(--border); }
     </style>
 </head>
 <body>
@@ -326,7 +338,7 @@
                     <th class="col-conteso" v-if="!datiSensibiliNascosti">CONT.</th>
                     <th style="width: 15%">STATO (L/M/A)</th>
                     <th style="width: 15%" class="th-ordinabile" @click="cambiaOrdinamento('costo_reale')">COSTO REALE{{ iconaOrdinamento('costo_reale') }}</th>
-                    <th style="width: 10%">NOTE</th>
+                    <th class="col-note">NOTE</th>
                 </tr>
                 <tr v-for="g in giocatoriFiltered" :key="g.nome" :class="'stato-' + g.stato">
                     <td class="col-star">
@@ -367,8 +379,8 @@
                                :disabled="g.stato === 'L'" 
                                @input="onCostoRealeChange(g)">
                     </td>
-                    <td>
-                        <input type="text" class="input-note" v-model="g.note" placeholder="Note" @input="salvaStato">
+                    <td class="col-note">
+                        <button type="button" class="note-btn" :class="{ 'has-note': (g.note || '').trim() }" @click="apriNote(g)" :title="(g.note || '').trim() ? 'Apri e modifica le note' : 'Aggiungi note'">📝</button>
                     </td>
                 </tr>
             </table>
@@ -456,7 +468,7 @@
             <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'salvati-' + ruolo" class="squadra-ruolo">
                 <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
                 <table>
-                    <tr><th class="col-star">★</th><th>Nome</th><th>MAX_D</th><th class="col-conteso">CONT.</th><th>STATO</th><th>NOTE</th></tr>
+                    <tr><th class="col-star">★</th><th>Nome</th><th>MAX_D</th><th class="col-conteso">CONT.</th><th>STATO</th><th class="col-note">NOTE</th></tr>
                     <tr v-for="g in giocatoriPreferitiPerRuolo(ruolo)" :key="g.nome" :class="'stato-' + g.stato">
                         <td class="col-star">
                             <button type="button" class="star-btn active" @click="togglePreferito(g)" title="Rimuovi dai preferiti">★</button>
@@ -473,7 +485,9 @@
                             </span>
                         </td>
                         <td>{{ g.stato === 'L' ? 'Libero' : (g.stato === 'M' ? 'Mio' : 'Altri') }}</td>
-                        <td style="font-size: 11px;">{{ g.note }}</td>
+                        <td class="col-note">
+                            <button type="button" class="note-btn" :class="{ 'has-note': (g.note || '').trim() }" @click="apriNote(g)" :title="(g.note || '').trim() ? 'Apri e modifica le note' : 'Aggiungi note'">📝</button>
+                        </td>
                     </tr>
                     <tr v-if="!giocatoriPreferitiPerRuolo(ruolo).length">
                         <td colspan="6" style="text-align:center; color: var(--text-muted);">Nessun giocatore salvato</td>
@@ -481,6 +495,22 @@
                 </table>
             </div>
         </div>
+        </div>
+
+        <!-- MODALE NOTE -->
+        <div v-if="notaAperta" class="note-modal" @click.self="chiudiNote">
+            <div class="note-modal-box" role="dialog" aria-modal="true" :aria-label="'Note di ' + notaAperta.nome">
+                <div class="note-modal-header">
+                    <strong>📝 Note — {{ notaAperta.nome }}</strong>
+                    <button type="button" class="note-modal-close" @click="chiudiNote" title="Chiudi">×</button>
+                </div>
+                <div class="note-modal-body">
+                    <textarea v-model="notaAperta.note" @input="salvaStato" :placeholder="'Scrivi qui le note per ' + notaAperta.nome" autofocus></textarea>
+                </div>
+                <div class="note-modal-footer">
+                    <button type="button" class="btn btn-success" @click="chiudiNote">Salva e chiudi</button>
+                </div>
+            </div>
         </div>
 
         <!-- ACCESS GATE -->
@@ -1182,6 +1212,17 @@
                     salvaStato();
                 };
 
+                // Nota attualmente aperta nel modale; non cambia la struttura dei dati esistente:
+                // viene modificato direttamente il campo g.note già usato dall'app.
+                const notaAperta = ref(null);
+                const apriNote = (g) => {
+                    notaAperta.value = g;
+                };
+                const chiudiNote = () => {
+                    if (notaAperta.value) salvaStato();
+                    notaAperta.value = null;
+                };
+
                 // Giocatori preferiti di un ruolo, ordinati per nome, per la scheda Salvati.
                 const giocatoriPreferitiPerRuolo = (ruolo) =>
                     giocatori.value
@@ -1696,7 +1737,7 @@
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     composizioneLiberiCat, conicGradientCat,
-                    onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo, togglePreferito, giocatoriPreferitiPerRuolo, stepExtra,
+                    onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
