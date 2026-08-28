@@ -1165,7 +1165,7 @@
       "nome": "ADZIC",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 3,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": "con Thorsvedt"
@@ -1228,7 +1228,7 @@
       "nome": "BARELLA",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 30,
+      "max": 25,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1264,7 +1264,7 @@
       "nome": "BERNABE'",
       "ruolo": "C",
       "cat": "Tit",
-      "max": 8,
+      "max": 5,
       "stato": "L",
       "costo_reale": 0,
       "note": "Piaz."
@@ -1309,7 +1309,7 @@
       "nome": "CALHANOGLU",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 65,
+      "max": 70,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig., Piaz."
@@ -1327,7 +1327,7 @@
       "nome": "CAMBIAGHI",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 8,
+      "max": 5,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1372,7 +1372,7 @@
       "nome": "CISSE' A.",
       "ruolo": "C",
       "cat": "Scm",
-      "max": 4,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1399,7 +1399,7 @@
       "nome": "CRISTANTE",
       "ruolo": "C",
       "cat": "Tit",
-      "max": 5,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1407,8 +1407,8 @@
     {
       "nome": "DA CUNHA",
       "ruolo": "C",
-      "cat": "Tit",
-      "max": 7,
+      "cat": "Pun",
+      "max": 15,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -1417,16 +1417,16 @@
       "nome": "DE BRUYNE",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 18,
+      "max": 16,
       "stato": "L",
       "costo_reale": 0,
-      "note": "Rig., Piaz."
+      "note": "Rig., Piaz., Rischio Infortuni"
     },
     {
       "nome": "DIOUF",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 5,
+      "max": 10,
       "stato": "L",
       "costo_reale": 0,
       "note": "se coperti"
@@ -1435,7 +1435,7 @@
       "nome": "DOMINGUEZ B.",
       "ruolo": "C",
       "cat": "Scm",
-      "max": 3,
+      "max": 1,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1474,7 +1474,7 @@
       "max": 1,
       "stato": "L",
       "costo_reale": 0,
-      "note": ""
+      "note": "INF."
     },
     {
       "nome": "ELLERTSSON",
@@ -1489,7 +1489,7 @@
       "nome": "ELMAS",
       "ruolo": "C",
       "cat": "Scm",
-      "max": 1,
+      "max": 2,
       "stato": "L",
       "costo_reale": 0,
       "note": "se coperti"
@@ -1498,7 +1498,7 @@
       "nome": "FAGIOLI",
       "ruolo": "C",
       "cat": "Tit",
-      "max": 3,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1552,7 +1552,7 @@
       "nome": "FRENDRUP",
       "ruolo": "C",
       "cat": "Tit",
-      "max": 6,
+      "max": 8,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1579,7 +1579,7 @@
       "nome": "GUDMUNSSON",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 22,
+      "max": 25,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig., Piaz."
@@ -1597,10 +1597,10 @@
       "nome": "ISAKSEN",
       "ruolo": "C",
       "cat": "Scm",
-      "max": 8,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
-      "note": "con Cancellieri"
+      "note": ""
     },
     {
       "nome": "JASHARI",
@@ -1615,7 +1615,7 @@
       "nome": "JONES C.",
       "ruolo": "C",
       "cat": "Scm",
-      "max": 1,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1651,7 +1651,7 @@
       "nome": "KONE' M.",
       "ruolo": "C",
       "cat": "Tit",
-      "max": 7,
+      "max": 10,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1732,7 +1732,7 @@
       "nome": "McKENNIE",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 14,
+      "max": 18,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1741,7 +1741,7 @@
       "nome": "McTOMINAY",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 50,
+      "max": 62,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1804,7 +1804,7 @@
       "nome": "NJIE",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 10,
+      "max": 13,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1849,7 +1849,7 @@
       "nome": "PASALIC",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 7,
+      "max": 8,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1858,7 +1858,7 @@
       "nome": "PAZ N.",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 50,
+      "max": 40,
       "stato": "L",
       "costo_reale": 0,
       "note": "Piaz."
@@ -1867,7 +1867,7 @@
       "nome": "PERRONE",
       "ruolo": "C",
       "cat": "Tit",
-      "max": 2,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1894,7 +1894,7 @@
       "nome": "PISILLI",
       "ruolo": "C",
       "cat": "Scm",
-      "max": 2,
+      "max": 1,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1903,7 +1903,7 @@
       "nome": "POLITANO",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 10,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": "Piaz."
@@ -1912,7 +1912,7 @@
       "nome": "PULISIC",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 35,
+      "max": 30,
       "stato": "L",
       "costo_reale": 0,
       "note": "Piaz."
@@ -1930,7 +1930,7 @@
       "nome": "RODRIGUEZ Je.",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 12,
+      "max": 16,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1948,7 +1948,7 @@
       "nome": "ROVELLA",
       "ruolo": "C",
       "cat": "Tit",
-      "max": 2,
+      "max": 4,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1957,7 +1957,7 @@
       "nome": "ROWE",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 12,
+      "max": 8,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1966,7 +1966,7 @@
       "nome": "SAELEMAEKERS",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 6,
+      "max": 4,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -1984,7 +1984,7 @@
       "nome": "SCHMID",
       "ruolo": "C",
       "cat": "Scm",
-      "max": 3,
+      "max": 1,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2038,7 +2038,7 @@
       "nome": "THURAM K.",
       "ruolo": "C",
       "cat": "Tit",
-      "max": 3,
+      "max": 5,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2110,7 +2110,7 @@
       "nome": "ZACCAGNI",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 30,
+      "max": 20,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig., Piaz."
@@ -2119,7 +2119,7 @@
       "nome": "ZALEWSKI",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 6,
+      "max": 7,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2128,7 +2128,7 @@
       "nome": "ZAMBO A.",
       "ruolo": "C",
       "cat": "Scm",
-      "max": 3,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2145,8 +2145,8 @@
     {
       "nome": "ZERBIN",
       "ruolo": "C",
-      "cat": "Pun",
-      "max": 5,
+      "cat": "Scm",
+      "max": 1,
       "stato": "L",
       "costo_reale": 0,
       "note": "con Fini"
@@ -2164,7 +2164,7 @@
       "nome": "ZIELINSKI",
       "ruolo": "C",
       "cat": "Occ",
-      "max": 12,
+      "max": 16,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
