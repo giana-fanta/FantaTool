@@ -205,6 +205,10 @@
                         {{ round2(mediaCreditiMiei) }} vs {{ mediaCreditiAltri > 0 ? round2(mediaCreditiAltri) : 'n/d' }}
                     </div>
                 </div>
+                <div class="card" v-if="config.budget_riserva_occ">
+                    <h3>Riserva Occ Residua</h3>
+                    <div class="value" :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(riservaOccResidua) }} / {{ round2(config.budget_riserva_occ) }}</div>
+                </div>
             </div>
 
             <h2>Situazione Reparti</h2>
@@ -494,7 +498,12 @@
                     C: { slot: 0, crediti: 0, dettagli: [] },
                     A: { slot: 0, crediti: 0, dettagli: [] }
                 });
-                const config = ref({ budget_iniziale: 500, slot_ruoli: { P:3, D:8, C:8, A:6 } });
+                // budget_riserva_occ: quota di budget dichiarata a parte per "strappi" pianificati
+                // su occasioni (categoria Occ), non usata nel calcolo del pacing (inflazioneGlobale)
+                // finché non risulta effettivamente consumata (vedi riservaOccResidua). Default 0 =
+                // comportamento identico a prima per chi non la configura (retrocompatibile con i
+                // dati.json/backup esistenti, che non hanno questo campo).
+                const config = ref({ budget_iniziale: 500, slot_ruoli: { P:3, D:8, C:8, A:6 }, budget_riserva_occ: 0 });
 
                 // Storico transazioni (Mio + Altri) usato dal fattore di "momentum" (proposta ③):
                 // una riga per giocatore acquistato, con il rapporto costo_reale/max al momento
@@ -987,10 +996,29 @@
                     return clampValore(raw, FINETUNING.capacitaAvversariMin, FINETUNING.capacitaAvversariMax);
                 });
 
-                // Indice di inflazione GLOBALE usato dentro MAX_D: MAX(0.1, Crediti_Residui / Costo_Atteso_Rimanente)
+                // [Riserva Occ] Quota della riserva dichiarata (config.budget_riserva_occ) già
+                // "consumata": la parte di quanto pagato sui giocatori Occ che ha superato il loro
+                // prezzo-listino (g.max) — cioè lo strappo vero e proprio, pianificato apposta per
+                // questo. Finché la riserva non è consumata, non deve sporcare il pacing generale
+                // (inflazioneGlobale): uno strappo preventivato non è un errore di spesa.
+                const riservaOccConsumata = computed(() => {
+                    return giocatori.value
+                        .filter(g => g.stato === 'M' && g.cat === 'Occ')
+                        .reduce((s, g) => s + Math.max(0, (g.costo_reale || 0) - (g.max || 0)), 0);
+                });
+                const riservaOccResidua = computed(() => {
+                    const riservaTot = config.value.budget_riserva_occ || 0;
+                    return Math.max(0, riservaTot - riservaOccConsumata.value);
+                });
+
+                // Indice di inflazione GLOBALE (pacing) usato dentro MAX_D: MAX(0.1, Crediti_Residui_al_netto_della_riserva_non_consumata / Costo_Atteso_Rimanente).
+                // La riserva Occ non ancora consumata viene tolta dal budget residuo usato per il
+                // pacing, così uno strappo pianificato-ma-non-ancora-fatto non abbassa il MAX_D di
+                // tutti gli altri ruoli/giocatori: la riserva è "già preventivata", non un imprevisto.
                 const inflazioneGlobale = computed(() => {
                     const b10 = costoAttesoRimanente.value;
-                    const raw = b10 === 0 ? 1 : budgetResiduo.value / b10; // IFERROR(...,1)
+                    const budgetResiduoPacing = budgetResiduo.value - riservaOccResidua.value;
+                    const raw = b10 === 0 ? 1 : budgetResiduoPacing / b10; // IFERROR(...,1)
                     return Math.max(0.1, raw);
                 });
 
@@ -1328,7 +1356,22 @@
                     const sazietaGenerale = fattoreSazietaGenerale(m);
 
                     let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank * sazieta * sazietaGenerale);
-                    return valore < 1 ? 1 : valore;
+                    valore = valore < 1 ? 1 : valore;
+
+                    // [Vincolo di solvibilità globale] Vincolo FISICO dell'asta, non un'euristica di
+                    // prezzo: per completare la rosa serve riservare almeno 1 credito per ciascuno
+                    // degli altri slot ancora vuoti (su TUTTI i ruoli, non solo quello di g). Quindi,
+                    // detti S = slotLiberiTotali (compreso lo slot che stiamo per riempire con g) e
+                    // B = budgetResiduo, il tetto assoluto è B - (S - 1). Va applicato per ULTIMO,
+                    // dopo tutte le correzioni soft (V/W/X, inflazione, momentum, rank, sazietà...),
+                    // perché può tagliare anche sotto il pavimento minimo di 1 credito quando il
+                    // margine è già compromesso: in tal caso il valore corretto è quel margine reale
+                    // (anche 0), non 1, altrimenti il tool suggerirebbe comunque una spesa non
+                    // sostenibile senza compromettere il resto della rosa.
+                    const tettoSolvibilita = Math.max(0, budgetResiduo.value - (slotLiberiTotali.value - 1));
+                    valore = Math.min(valore, tettoSolvibilita);
+
+                    return valore;
                 };
 
                 const calcolaMaxD = (g) => g.stato !== 'L' ? '-' : calcolaMaxDNumerico(g);
@@ -1469,6 +1512,7 @@
                     tabs, currentTab, datiSensibiliNascosti, config, extra, giocatoriFiltered, metrics,
                     creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
+                    riservaOccResidua, riservaOccConsumata,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     composizioneLiberiCat, conicGradientCat,
