@@ -134,6 +134,9 @@
         .star-btn:hover { color: var(--squadra); transform: scale(1.15); }
         .star-btn.active { color: var(--squadra); }
         .col-star { width: 5%; text-align: center; }
+        .col-conteso { width: 8%; text-align: center; }
+        .conteso-checkbox { width: auto !important; margin: 0; accent-color: var(--danger); }
+        .badge-interval { display: inline-block; margin-left: 5px; color: var(--text-muted); font-size: 11px; white-space: nowrap; cursor: help; }
 
         /* Colonna NOTE modificabile: l'input non deve sembrare "disabilitato" come le altre celle */
         td input[type="text"].input-note { font-size: 12px; }
@@ -320,6 +323,7 @@
                     <th style="width: 10%" v-if="!datiSensibiliNascosti">CAT</th>
                     <th style="width: 10%" class="th-ordinabile" v-if="!datiSensibiliNascosti" @click="cambiaOrdinamento('max')">MAX{{ iconaOrdinamento('max') }}</th>
                     <th style="width: 15%" class="th-ordinabile" v-if="!datiSensibiliNascosti" @click="cambiaOrdinamento('max_d')">MAX_D{{ iconaOrdinamento('max_d') }}</th>
+                    <th class="col-conteso" v-if="!datiSensibiliNascosti">CONT.</th>
                     <th style="width: 15%">STATO (L/M/A)</th>
                     <th style="width: 15%" class="th-ordinabile" @click="cambiaOrdinamento('costo_reale')">COSTO REALE{{ iconaOrdinamento('costo_reale') }}</th>
                     <th style="width: 10%">NOTE</th>
@@ -339,6 +343,14 @@
                               title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
                             {{ calcolaConfidenzaMaxD(g) }}%
                         </span>
+                        <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && intervalloMaxD(g).dispersione > 0" class="badge-interval"
+                              :title="tooltipIntervalloMaxD(g)">
+                            ≈ {{ intervalloMaxD(g).min }}–{{ intervalloMaxD(g).max }}
+                        </span>
+                    </td>
+                    <td v-if="!datiSensibiliNascosti" class="col-conteso">
+                        <input class="conteso-checkbox" type="checkbox" v-model="g.moltoConteso" @change="salvaStato"
+                               title="Segna manualmente come giocatore molto conteso: applica un piccolo moltiplicatore al MAX_D">
                     </td>
                     <td>
                         <div class="stato-checkboxes">
@@ -444,12 +456,15 @@
             <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'salvati-' + ruolo" class="squadra-ruolo">
                 <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
                 <table>
-                    <tr><th class="col-star">★</th><th>Nome</th><th>MAX_D</th><th>STATO</th><th>NOTE</th></tr>
+                    <tr><th class="col-star">★</th><th>Nome</th><th>MAX_D</th><th class="col-conteso">CONT.</th><th>STATO</th><th>NOTE</th></tr>
                     <tr v-for="g in giocatoriPreferitiPerRuolo(ruolo)" :key="g.nome" :class="'stato-' + g.stato">
                         <td class="col-star">
                             <button type="button" class="star-btn active" @click="togglePreferito(g)" title="Rimuovi dai preferiti">★</button>
                         </td>
                         <td>{{ g.nome }}</td>
+                        <td class="col-conteso">
+                            <span v-if="g.moltoConteso" class="badge badge-warn" title="Giocatore segnato manualmente come molto conteso">🔥</span>
+                        </td>
                         <td>
                             <strong>{{ calcolaMaxD(g) }}</strong>
                             <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA'" class="badge badge-conf"
@@ -461,7 +476,7 @@
                         <td style="font-size: 11px;">{{ g.note }}</td>
                     </tr>
                     <tr v-if="!giocatoriPreferitiPerRuolo(ruolo).length">
-                        <td colspan="5" style="text-align:center; color: var(--text-muted);">Nessun giocatore salvato</td>
+                        <td colspan="6" style="text-align:center; color: var(--text-muted);">Nessun giocatore salvato</td>
                     </tr>
                 </table>
             </div>
@@ -584,7 +599,11 @@
                     epsilonSazieta: 0.15,                       // E: riduzione di MAX_D per ogni giocatore "oltre quota" nella CAT
                     sazietaMin: 0.5,                             // E: pavimento del fattore di sazietà (mai sotto il 50%)
                     epsilonSazietaGenerale: 0.2,                 // F: riduzione di MAX_D in base al solo riempimento fisico del ruolo (indipendente da CAT)
-                    sazietaGeneraleMin: 0.8                      // F: pavimento della sazietà generale (mai sotto l'80%, effetto volutamente più soft di quella per-CAT)
+                    sazietaGeneraleMin: 0.8,                      // F: pavimento della sazietà generale (mai sotto l'80%, effetto volutamente più soft di quella per-CAT)
+                    moltiplicatoreGiocatoreConteso: 1.15,          // G: maggiorazione manuale per un giocatore noto come molto conteso
+                    coefficienteIntervalloDispersione: 0.75,       // G: ampiezza dell'intervallo MAX_D derivata dalla dispersione osservata
+                    ampiezzaIntervalloMin: 0.08,                   // G: larghezza minima relativa dell'intervallo quando la dispersione è presente
+                    ampiezzaIntervalloMax: 0.35                    // G: evita intervalli eccessivamente larghi per outlier isolati
                 };
 
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
@@ -732,7 +751,10 @@
                 // proviene da un dati.json o da un backup/localStorage precedenti all'introduzione
                 // della funzione "Salvati": non influisce su nessun calcolo, è solo un flag UI.
                 const normalizzaGiocatori = (lista) => {
-                    (lista || []).forEach(g => { if (g.preferito === undefined) g.preferito = false; });
+                    (lista || []).forEach(g => {
+                        if (g.preferito === undefined) g.preferito = false;
+                        if (g.moltoConteso === undefined) g.moltoConteso = false;
+                    });
                     return lista;
                 };
 
@@ -959,9 +981,24 @@
                 // alle statistiche globali di capacitaSpesaAltri, vedi sotto).
                 const mediaCreditiAltriCatInfo = (ruolo, cat) => {
                     const altri = giocatori.value.filter(g => g.ruolo === ruolo && g.cat === cat && g.stato === 'A' && g.costo_reale > 0);
-                    if (!altri.length) return { media: 0, numAcquisti: 0 };
+                    if (!altri.length) return { media: 0, numAcquisti: 0, dispersioneRapporto: 0, maxRapporto: 0 };
+                    const rapporti = altri
+                        .filter(g => g.max > 0)
+                        .map(g => (g.costo_reale || 0) / g.max)
+                        .filter(v => Number.isFinite(v) && v > 0);
                     const creditiTot = altri.reduce((s, g) => s + (g.costo_reale || 0), 0);
-                    return { media: creditiTot / altri.length, numAcquisti: altri.length };
+                    if (!rapporti.length) return { media: creditiTot / altri.length, numAcquisti: altri.length, dispersioneRapporto: 0, maxRapporto: 0 };
+                    const mediaRapporto = rapporti.reduce((s, v) => s + v, 0) / rapporti.length;
+                    const varianza = rapporti.length > 1
+                        ? rapporti.reduce((s, v) => s + Math.pow(v - mediaRapporto, 2), 0) / rapporti.length
+                        : 0;
+                    const deviazioneStandard = Math.sqrt(varianza);
+                    return {
+                        media: creditiTot / altri.length,
+                        numAcquisti: altri.length,
+                        dispersioneRapporto: deviazioneStandard,
+                        maxRapporto: Math.max(...rapporti)
+                    };
                 };
 
                 // [Raffinamento D] Statistiche globali (tutti i ruoli) sugli acquisti "Altri": numero
@@ -1024,6 +1061,20 @@
                     const budgetResiduoStimato = budgetTotaleAltri - creditiSpesiAltriTotali.value;
                     const raw = budgetResiduoStimato / budgetAttesoResiduo;
                     return clampValore(raw, FINETUNING.capacitaAvversariMin, FINETUNING.capacitaAvversariMax);
+                });
+
+                // Dispersione osservata globale dei rapporti costo_reale/MAX degli "Altri":
+                // non pretende di ricostruire i budget dei singoli manager, ma misura quanto
+                // eterogenea è stata la spesa finora e viene usata solo per l'ampiezza dell'intervallo MAX_D.
+                const dispersioneRapportiAltri = computed(() => {
+                    const rapporti = giocatori.value
+                        .filter(g => g.stato === 'A' && g.costo_reale > 0 && g.max > 0)
+                        .map(g => (g.costo_reale || 0) / g.max)
+                        .filter(v => Number.isFinite(v) && v > 0);
+                    if (rapporti.length <= 1) return { deviazioneStandard: 0, max: rapporti[0] || 0, n: rapporti.length };
+                    const media = rapporti.reduce((s, v) => s + v, 0) / rapporti.length;
+                    const varianza = rapporti.reduce((s, v) => s + Math.pow(v - media, 2), 0) / rapporti.length;
+                    return { deviazioneStandard: Math.sqrt(varianza), max: Math.max(...rapporti), n: rapporti.length };
                 });
 
                 // [Riserva Occ] Quota della riserva dichiarata (config.budget_riserva_occ) già
@@ -1193,6 +1244,18 @@
                 // delle transazioni osservate: un'accelerazione vista su acquisti Occ pesa molto sul
                 // momentum di un altro Occ, ma poco su quello di uno Sca, e viceversa.
                 const pesoCatMomentum = (cat) => PESO_INFLAZIONE[cat] !== undefined ? PESO_INFLAZIONE[cat] : 1;
+                // Deviazione standard dei rapporti storici per ruolo/CAT. È un segnale di eterogeneità,
+                // non modifica il fattoreMomentum centrale: serve a costruire un intervallo di incertezza.
+                const dispersioneMomentum = (ruolo, catGiocatore) => {
+                    const storico = storicoAcquisti.value
+                        .filter(t => t.ruolo === ruolo && t.cat === catGiocatore && t.rapporto > 0 && Number.isFinite(t.rapporto))
+                        .map(t => t.rapporto);
+                    if (storico.length <= 1) return { deviazioneStandard: 0, max: storico[0] || 0, n: storico.length };
+                    const media = storico.reduce((s, v) => s + v, 0) / storico.length;
+                    const varianza = storico.reduce((s, v) => s + Math.pow(v - media, 2), 0) / storico.length;
+                    return { deviazioneStandard: Math.sqrt(varianza), max: Math.max(...storico), n: storico.length };
+                };
+
                 const fattoreMomentum = (ruolo, catGiocatore) => {
                     const storicoRuolo = storicoAcquisti.value
                         .filter(t => t.ruolo === ruolo && t.rapporto > 0)
@@ -1287,6 +1350,48 @@
                     if (!m.slotTot) return 1;
                     const occupazioneRuolo = (m.slotTot - m.slotLiberi) / m.slotTot;
                     return clampValore(1 - FINETUNING.epsilonSazietaGenerale * occupazioneRuolo, FINETUNING.sazietaGeneraleMin, 1);
+                };
+
+                // Intervallo di incertezza MAX_D: il centro resta il risultato del motore, mentre
+                // la dispersione osservata amplia il range. Non tenta di indovinare il secondo prezzo:
+                // rende esplicita l'incertezza dovuta alla domanda eterogenea.
+                const intervalloMaxD = (g) => {
+                    const centrale = calcolaMaxDNumerico(g);
+                    if (g.stato !== 'L' || !centrale || nessunAcquistoEffettuato.value) {
+                        return { min: centrale, max: centrale, ampiezza: 0, dispersione: 0 };
+                    }
+
+                    const infoCat = mediaCreditiAltriCatInfo(g.ruolo, g.cat);
+                    const dispCat = dispersioneMomentum(g.ruolo, g.cat);
+                    const dispGlobale = dispersioneRapportiAltri.value;
+
+                    const componentiDispersione = [
+                        infoCat.dispersioneRapporto,
+                        dispCat.deviazioneStandard,
+                        dispGlobale.deviazioneStandard
+                    ].filter(v => Number.isFinite(v) && v > 0);
+
+                    if (!componentiDispersione.length) {
+                        return { min: centrale, max: centrale, ampiezza: 0, dispersione: 0 };
+                    }
+
+                    const dispersione = Math.max(...componentiDispersione);
+                    const ampiezza = clampValore(
+                        FINETUNING.coefficienteIntervalloDispersione * dispersione,
+                        FINETUNING.ampiezzaIntervalloMin,
+                        FINETUNING.ampiezzaIntervalloMax
+                    );
+
+                    const min = Math.max(1, Math.round(centrale * (1 - ampiezza)));
+                    const max = Math.max(min, Math.round(centrale * (1 + ampiezza)));
+                    return { min, max, ampiezza, dispersione };
+                };
+
+                const tooltipIntervalloMaxD = (g) => {
+                    const i = intervalloMaxD(g);
+                    return i.ampiezza > 0
+                        ? `Range indicativo ${i.min}-${i.max}: ampiezza basata sulla dispersione osservata dei rapporti costo_reale/MAX (CAT, ruolo e totale). Non è un prezzo previsto né una ricostruzione del secondo prezzo.`
+                        : 'Nessuna dispersione osservabile sufficiente per ampliare il range.';
                 };
 
                 // Motore Ricalcolo MAX_D — parte dalla formula originale (replica esatta del foglio
@@ -1386,6 +1491,13 @@
                     const sazietaGenerale = fattoreSazietaGenerale(m);
 
                     let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank * sazieta * sazietaGenerale);
+
+                    // [Nuovo] Segnale manuale di domanda molto contesa: non prova a stimare il rivale,
+                    // ma incorpora l'informazione qualitativa che l'utente possiede e i dati aggregati non possono vedere.
+                    if (g.moltoConteso) {
+                        valore = Math.round(valore * FINETUNING.moltiplicatoreGiocatoreConteso);
+                    }
+
                     valore = valore < 1 ? 1 : valore;
 
                     // [Vincolo di solvibilità globale] Vincolo FISICO dell'asta, non un'euristica di
@@ -1585,7 +1697,7 @@
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo, togglePreferito, giocatoriPreferitiPerRuolo, stepExtra,
-                    calcolaMaxD, calcolaConfidenzaMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
+                    calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
                     accessGranted, inputAccesso, erroreAccesso, tentaAccesso
