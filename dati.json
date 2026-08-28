@@ -2172,7 +2172,7 @@
     {
       "nome": "ADAMS A.",
       "ruolo": "A",
-      "cat": "Sca",
+      "cat": "Scm",
       "max": 1,
       "stato": "L",
       "costo_reale": 0,
@@ -2182,7 +2182,7 @@
       "nome": "ADAMS C.",
       "ruolo": "A",
       "cat": "Scm",
-      "max": 1,
+      "max": 20,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2191,7 +2191,7 @@
       "nome": "BERARDI",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 60,
+      "max": 70,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rischio Inf., Rig., Piaz."
@@ -2200,7 +2200,7 @@
       "nome": "BOGA",
       "ruolo": "A",
       "cat": "Scm",
-      "max": 10,
+      "max": 35,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2209,7 +2209,7 @@
       "nome": "BONNY",
       "ruolo": "A",
       "cat": "Scm",
-      "max": 20,
+      "max": 40,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2245,7 +2245,7 @@
       "nome": "COLOMBO",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 30,
+      "max": 40,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2263,7 +2263,7 @@
       "nome": "DAVIES K.",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 60,
+      "max": 70,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rischio Inf., Rig."
@@ -2280,8 +2280,8 @@
     {
       "nome": "DIA",
       "ruolo": "A",
-      "cat": "Tit",
-      "max": 40,
+      "cat": "Sca",
+      "max": 15,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2299,7 +2299,7 @@
       "nome": "DOUVIKAS",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 70,
+      "max": 90,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2335,7 +2335,7 @@
       "nome": "ESPOSITO F. P.",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 60,
+      "max": 85,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2343,8 +2343,8 @@
     {
       "nome": "GEUBBELS",
       "ruolo": "A",
-      "cat": "Sca",
-      "max": 5,
+      "cat": "Scm",
+      "max": 10,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2361,8 +2361,8 @@
     {
       "nome": "HOJLUND",
       "ruolo": "A",
-      "cat": "Pun",
-      "max": 108,
+      "cat": "Occ",
+      "max": 100,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2371,7 +2371,7 @@
       "nome": "KEAN",
       "ruolo": "A",
       "cat": "Occ",
-      "max": 120,
+      "max": 100,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2379,8 +2379,8 @@
     {
       "nome": "KEVIN CARLOS",
       "ruolo": "A",
-      "cat": "Sca",
-      "max": 25,
+      "cat": "Scm",
+      "max": 30,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2398,7 +2398,7 @@
       "nome": "KRSTOVIC",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 65,
+      "max": 80,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2426,15 +2426,6 @@
       "ruolo": "A",
       "cat": "Pun",
       "max": 40,
-      "stato": "L",
-      "costo_reale": 0,
-      "note": ""
-    },
-    {
-      "nome": "LEAO",
-      "ruolo": "A",
-      "cat": "Tit",
-      "max": 50,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2542,7 +2533,7 @@
       "nome": "PICCOLI",
       "ruolo": "A",
       "cat": "Scm",
-      "max": 20,
+      "max": 30,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2550,8 +2541,8 @@
     {
       "nome": "PINAMONTI",
       "ruolo": "A",
-      "cat": "Sca",
-      "max": 10,
+      "cat": "Tit",
+      "max": 45,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2560,7 +2551,7 @@
       "nome": "RAIMONDO",
       "ruolo": "A",
       "cat": "Tit",
-      "max": 10,
+      "max": 15,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2569,7 +2560,7 @@
       "nome": "RAMOS G.",
       "ruolo": "A",
       "cat": "Occ",
-      "max": 80,
+      "max": 90,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2577,8 +2568,8 @@
     {
       "nome": "RASPADORI",
       "ruolo": "A",
-      "cat": "Scm",
-      "max": 38,
+      "cat": "Tit",
+      "max": 50,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2595,8 +2586,8 @@
     {
       "nome": "SANTOS A.",
       "ruolo": "A",
-      "cat": "Sca",
-      "max": 1,
+      "cat": "Scm",
+      "max": 20,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2605,7 +2596,7 @@
       "nome": "SCAMACCA",
       "ruolo": "A",
       "cat": "Tit",
-      "max": 65,
+      "max": 80,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2613,7 +2604,7 @@
     {
       "nome": "SIMEONE",
       "ruolo": "A",
-      "cat": "Pun",
+      "cat": "Tit",
       "max": 45,
       "stato": "L",
       "costo_reale": 0,
@@ -2623,7 +2614,7 @@
       "nome": "SOULE'",
       "ruolo": "A",
       "cat": "Occ",
-      "max": 30,
+      "max": 20,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2650,7 +2641,7 @@
       "nome": "THURAM M.",
       "ruolo": "A",
       "cat": "Pun",
-      "max": 180,
+      "max": 140,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2667,8 +2658,8 @@
     {
       "nome": "VARELA G.",
       "ruolo": "A",
-      "cat": "Scm",
-      "max": 18,
+      "cat": "Tit",
+      "max": 25,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -2686,7 +2677,7 @@
       "nome": "YEBOAH",
       "ruolo": "A",
       "cat": "Tit",
-      "max": 20,
+      "max": 15,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
