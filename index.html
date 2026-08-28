@@ -109,6 +109,9 @@
         .stato-checkboxes input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--primary); }
         .stato-checkboxes label.chk-mio { background: #3a262b; border-color: #e8919e; color: #e8919e; }
         .stato-checkboxes label.chk-altri { background: #202c40; border-color: #8fb3ea; color: #8fb3ea; }
+        .stato-avversario-select { min-width: 180px; width: auto !important; }
+        .avv-extra-grid { overflow-x: auto; }
+        .avv-extra-grid table { min-width: 760px; }
         .btn-reset-filtri { padding: 8px 12px; font-size: 13px; }
         .link-btn { background: none; border: none; color: var(--primary); font-size: 11px; cursor: pointer; padding: 0; text-decoration: underline; }
         th.th-ordinabile { cursor: pointer; user-select: none; }
@@ -405,8 +408,8 @@
                             <label :class="{ 'chk-mio': g.stato === 'M' }">
                                 <input type="checkbox" :checked="g.stato === 'M'" @change="toggleStato(g, 'M')"> Mio
                             </label>
-                            <select v-if="g.stato === 'A'" v-model="g.avversarioId" @change="onAvversarioChange(g)" title="Assegna l'acquisto ad un avversario">
-                                <option disabled value="">Seleziona avversario…</option>
+                            <select class="stato-avversario-select" v-model="g.avversarioId" @change="onAvversarioSelectChange(g)" title="Assegna l'acquisto a un avversario">
+                                <option value="">{{ g.stato === 'A' ? 'Seleziona avversario…' : 'Avversario…' }}</option>
                                 <option v-for="avv in avversari" :key="avv.id" :value="avv.id">{{ avv.nome || avv.id }}</option>
                             </select>
                         </div>
@@ -451,29 +454,31 @@
             </table>
 
             <h2>Extra Avversari</h2>
-            <p class="note">Slot extra da conteggiare come "già riempiti" nella Situazione Reparti (Slot Riempiti Avversari), con i relativi crediti spesi per acquistarli (facoltativi). Non interagiscono con il budget o la rosa "Mio": i crediti vengono usati solo nelle metriche/calcoli relativi agli Altri (media spesa Altri, stima MAX_D).</p>
-            <table>
-                <tr>
-                    <th>Ruolo</th><th>Extra Avversari (slot)</th><th>Extra Avversari (crediti)</th>
-                </tr>
-                <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'extra-avv-' + ruolo">
-                    <td><strong>{{ ruolo }}</strong></td>
-                    <td class="campo-extra-avv">
-                        <div class="qty-stepper">
-                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'slotAvversariExtra', -1)">−</button>
-                            <input type="number" min="0" v-model.number="extra[ruolo].slotAvversariExtra" @input="salvaStato">
-                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'slotAvversariExtra', 1)">+</button>
-                        </div>
-                    </td>
-                    <td class="campo-extra-avv">
-                        <div class="qty-stepper">
-                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'creditiAvversariExtra', -1)">−</button>
-                            <input type="number" min="0" v-model.number="extra[ruolo].creditiAvversariExtra" @input="salvaStato">
-                            <button type="button" class="qty-btn" @click="stepExtra(ruolo, 'creditiAvversariExtra', 1)">+</button>
-                        </div>
-                    </td>
-                </tr>
-            </table>
+            <p class="note">Gli Extra degli avversari sono ora tracciati singolarmente: ogni riga rappresenta un partecipante e contiene, per ciascun ruolo, gli slot extra e i crediti spesi. Questi dati partecipano al calcolo del budget residuo, degli slot ancora necessari e della pressione economica del singolo avversario.</p>
+            <div class="avv-extra-grid" v-if="avversari.length">
+                <table>
+                    <tr>
+                        <th>Avversario</th>
+                        <th v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'extra-head-' + ruolo">{{ ruolo }} — slot / crediti</th>
+                    </tr>
+                    <tr v-for="avv in avversari" :key="'extra-avv-' + avv.id">
+                        <td><strong>{{ avv.nome || avv.id }}</strong></td>
+                        <td v-for="ruolo in ['P', 'D', 'C', 'A']" :key="avv.id + '-' + ruolo">
+                            <div class="qty-stepper">
+                                <button type="button" class="qty-btn" @click="stepAvversarioExtra(avv.id, ruolo, 'slot', -1)">−</button>
+                                <input type="number" min="0" v-model.number="extraAvversari[avv.id][ruolo].slot" @input="salvaAvversariExtra">
+                                <button type="button" class="qty-btn" @click="stepAvversarioExtra(avv.id, ruolo, 'slot', 1)">+</button>
+                            </div>
+                            <div class="qty-stepper" style="margin-top:6px;">
+                                <button type="button" class="qty-btn" @click="stepAvversarioExtra(avv.id, ruolo, 'crediti', -1)">−</button>
+                                <input type="number" min="0" v-model.number="extraAvversari[avv.id][ruolo].crediti" @input="salvaAvversariExtra">
+                                <button type="button" class="qty-btn" @click="stepAvversarioExtra(avv.id, ruolo, 'crediti', 1)">+</button>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <p class="note" v-else>Nessun avversario configurato.</p>
         </div>
 
         <!-- MIA SQUADRA -->
@@ -597,6 +602,7 @@
                     C: { slot: 0, crediti: 0, dettagli: [] },
                     A: { slot: 0, crediti: 0, dettagli: [] }
                 });
+                const extraAvversari = ref({});
                 // budget_riserva_occ: quota di budget dichiarata a parte per "strappi" pianificati
                 // su occasioni (categoria Occ), non usata nel calcolo del pacing (inflazioneGlobale)
                 // finché non risulta effettivamente consumata (vedi riservaOccResidua). Default 0 =
@@ -788,6 +794,18 @@
 
                 // Normalizza il vecchio formato "extra" (array con descrizione) verso il nuovo,
                 // così un backup/localStorage precedente resta leggibile.
+                function normalizzaExtraAvversari(valore, elencoAvversari) {
+                    const out = {};
+                    (elencoAvversari || []).forEach(avv => {
+                        out[avv.id] = {};
+                        ['P','D','C','A'].forEach(r => {
+                            const src = valore?.[avv.id]?.[r] || {};
+                            out[avv.id][r] = { slot: Number(src.slot || 0), crediti: Number(src.crediti || 0) };
+                        });
+                    });
+                    return out;
+                }
+
                 function normalizzaExtra(valore) {
                     const base = { P: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0, creditiAvversariExtra: 0 }, D: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0, creditiAvversariExtra: 0 }, C: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0, creditiAvversariExtra: 0 }, A: { slot: 0, crediti: 0, dettagli: [], slotAvversariExtra: 0, creditiAvversariExtra: 0 } };
                     if (!valore) return base;
@@ -863,6 +881,7 @@
                         giocatori.value = normalizzaGiocatori(parsed.giocatori);
                         extra.value = normalizzaExtra(parsed.extra);
                         config.value = normalizzaConfig(parsed.config);
+                        extraAvversari.value = normalizzaExtraAvversari(parsed.extraAvversari, config.value.avversari);
                         // Retrocompatibile: backup/localStorage precedenti non hanno questi campi.
                         storicoAcquisti.value = Array.isArray(parsed.storicoAcquisti) ? parsed.storicoAcquisti : [];
                         prossimoOrdineAcquisto.value = parsed.prossimoOrdineAcquisto || 0;
@@ -873,6 +892,7 @@
                             giocatori.value = normalizzaGiocatori(data.giocatori);
                             extra.value = normalizzaExtra(data.extra);
                             config.value = normalizzaConfig(data.config);
+                            extraAvversari.value = normalizzaExtraAvversari(data.extraAvversari, config.value.avversari);
                             storicoAcquisti.value = [];
                             prossimoOrdineAcquisto.value = 0;
                             salvaStato(); // Scrive subito il db fresco in locale
@@ -886,6 +906,7 @@
                     localStorage.setItem('fanta_db', JSON.stringify({
                         giocatori: giocatori.value,
                         extra: extra.value,
+                        extraAvversari: extraAvversari.value,
                         config: config.value,
                         storicoAcquisti: storicoAcquisti.value,
                         prossimoOrdineAcquisto: prossimoOrdineAcquisto.value
@@ -912,20 +933,22 @@
 
                 const statAvversario = (avversarioId) => {
                     const acquisti = acquistiAvversario(avversarioId);
-                    const spesa = acquisti.reduce((s, g) => s + (g.costo_reale || 0), 0);
+                    const extraSlot = ['P','D','C','A'].reduce((s, r) => s + Number(extraAvversarioRuolo(avversarioId, r).slot || 0), 0);
+                    const extraCrediti = ['P','D','C','A'].reduce((s, r) => s + Number(extraAvversarioRuolo(avversarioId, r).crediti || 0), 0);
+                    const spesa = acquisti.reduce((s, g) => s + (g.costo_reale || 0), 0) + extraCrediti;
                     const slotTotali = ['P','D','C','A'].reduce((s, r) => s + (config.value.slot_ruoli[r] || 0), 0);
-                    const slotOccupati = acquisti.length;
+                    const slotOccupati = acquisti.length + extraSlot;
                     return {
                         budgetIniziale: Number(config.value.budget_iniziale || 0),
                         budgetResiduo: Math.max(0, Number(config.value.budget_iniziale || 0) - spesa),
-                        spesa, slotTotali, slotOccupati,
+                        spesa, extraSlot, extraCrediti, slotTotali, slotOccupati,
                         slotLiberi: Math.max(0, slotTotali - slotOccupati)
                     };
                 };
 
                 const slotAvversarioLiberi = (avversarioId, ruolo) => {
                     const tot = config.value.slot_ruoli[ruolo] || 0;
-                    const occupati = acquistiAvversario(avversarioId).filter(g => g.ruolo === ruolo).length;
+                    const occupati = acquistiAvversario(avversarioId).filter(g => g.ruolo === ruolo).length + Number(extraAvversarioRuolo(avversarioId, ruolo).slot || 0);
                     return Math.max(0, tot - occupati);
                 };
 
@@ -961,19 +984,51 @@
                     const idsValidi = new Set(nuovi.map(a => a.id));
                     config.value.numero_avversari = nuovi.length;
                     config.value.avversari = nuovi;
+                    extraAvversari.value = normalizzaExtraAvversari(extraAvversari.value, nuovi);
                     giocatori.value.forEach(g => {
                         if (g.stato === 'A' && g.avversarioId && !idsValidi.has(g.avversarioId)) g.avversarioId = '';
                     });
                     salvaStato();
                 };
 
-                const onAvversarioChange = (g) => {
-                    if (g.stato === 'A' && !avversari.value.some(a => a.id === g.avversarioId)) {
-                        g.avversarioId = avversari.value[0]?.id || '';
+                const onAvversarioSelectChange = (g) => {
+                    if (g.avversarioId) {
+                        g.stato = 'A';
+                    } else if (g.stato === 'A') {
+                        g.stato = 'L';
+                        g.costo_reale = 0;
+                        rimuoviTransazione(g.nome);
                     }
-                    registraTransazione(g);
+                    if (g.stato === 'A' && !avversari.value.some(a => a.id === g.avversarioId)) {
+                        g.avversarioId = '';
+                        g.stato = 'L';
+                        g.costo_reale = 0;
+                        rimuoviTransazione(g.nome);
+                    } else if (g.stato === 'A') {
+                        registraTransazione(g);
+                    }
                     salvaStato();
                 };
+
+                const sincronizzaExtraAvversari = () => {
+                    const base = normalizzaExtraAvversari(extraAvversari.value, avversari.value);
+                    extraAvversari.value = base;
+                    return base;
+                };
+
+                const salvaAvversariExtra = () => {
+                    sincronizzaExtraAvversari();
+                    salvaStato();
+                };
+
+                const stepAvversarioExtra = (avversarioId, ruolo, campo, delta) => {
+                    sincronizzaExtraAvversari();
+                    const item = extraAvversari.value[avversarioId][ruolo];
+                    item[campo] = Math.max(0, Number(item[campo] || 0) + delta);
+                    salvaStato();
+                };
+
+                const extraAvversarioRuolo = (avversarioId, ruolo) => extraAvversari.value?.[avversarioId]?.[ruolo] || { slot: 0, crediti: 0 };
 
                 // Slot ancora da riempire dagli avversari per un ruolo: totale slot richiesti da
                 // tutti gli avversari meno i giocatori di quel ruolo già presi da "Altri" (stato 'A').
@@ -989,7 +1044,8 @@
                 // riempiti in questa sola dinamica, senza toccare budget/spesa né la rosa "Mio".
                 const statoSlotAvversari = (ruolo) => {
                     const totale = numeroAvversari.value * (config.value.slot_ruoli[ruolo] || 0);
-                    const riempiti = countStato(ruolo, 'A') + (extra.value[ruolo]?.slotAvversariExtra || 0);
+                    const extraSlotTot = avversari.value.reduce((sum, avv) => sum + Number(extraAvversarioRuolo(avv.id, ruolo).slot || 0), 0);
+                    const riempiti = countStato(ruolo, 'A') + extraSlotTot;
                     const mancanti = Math.max(0, totale - riempiti);
                     return {
                         riempiti,
@@ -1132,11 +1188,13 @@
                     // Gli Extra Avversari (scheda Extra) contano come acquisti "Altri" a tutti gli
                     // effetti: ogni slot extra è un acquisto in più e i suoi crediti (se indicati)
                     // si sommano a quelli spesi, esattamente come già avviene sul lato "Mio".
-                    const extraSlotAltriTot = ['P', 'D', 'C', 'A'].reduce((s, r) => s + (extra.value[r]?.slotAvversariExtra || 0), 0);
-                    const extraCreditiAltriTot = ['P', 'D', 'C', 'A'].reduce((s, r) => s + (extra.value[r]?.creditiAvversariExtra || 0), 0);
-                    const numAcquisti = altri.length + extraSlotAltriTot;
+                    const extraSlotLegacy = ['P', 'D', 'C', 'A'].reduce((s, r) => s + (extra.value[r]?.slotAvversariExtra || 0), 0);
+                    const extraCreditiLegacy = ['P', 'D', 'C', 'A'].reduce((s, r) => s + (extra.value[r]?.creditiAvversariExtra || 0), 0);
+                    const extraSlotPerManager = avversari.value.reduce((s, avv) => s + ['P','D','C','A'].reduce((sr, r) => sr + Number(extraAvversarioRuolo(avv.id, r).slot || 0), 0), 0);
+                    const extraCreditiPerManager = avversari.value.reduce((s, avv) => s + ['P','D','C','A'].reduce((sr, r) => sr + Number(extraAvversarioRuolo(avv.id, r).crediti || 0), 0), 0);
+                    const numAcquisti = altri.length + extraSlotLegacy + extraSlotPerManager;
                     if (!numAcquisti) return 0;
-                    const creditiTot = altri.reduce((s, g) => s + (g.costo_reale || 0), 0) + extraCreditiAltriTot;
+                    const creditiTot = altri.reduce((s, g) => s + (g.costo_reale || 0), 0) + extraCreditiLegacy + extraCreditiPerManager;
                     return creditiTot / numAcquisti;
                 });
 
@@ -1177,6 +1235,7 @@
                         n += giocatori.value.filter(g => g.ruolo === r && g.stato === 'A' && g.costo_reale > 0).length;
                         n += extra.value[r]?.slotAvversariExtra || 0;
                     });
+                    n += avversari.value.reduce((sum, avv) => sum + ['P','D','C','A'].reduce((sr, r) => sr + Number(extraAvversarioRuolo(avv.id, r).slot || 0), 0), 0);
                     return n;
                 });
                 const creditiSpesiAltriTotali = computed(() => {
@@ -1185,6 +1244,7 @@
                         const altri = giocatori.value.filter(g => g.ruolo === r && g.stato === 'A' && g.costo_reale > 0);
                         tot += altri.reduce((s, g) => s + (g.costo_reale || 0), 0) + (extra.value[r]?.creditiAvversariExtra || 0);
                     });
+                    tot += avversari.value.reduce((sum, avv) => sum + ['P','D','C','A'].reduce((sr, r) => sr + Number(extraAvversarioRuolo(avv.id, r).crediti || 0), 0), 0);
                     return tot;
                 });
 
@@ -1843,7 +1903,7 @@
                 };
 
                 const esportaDati = () => {
-                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({giocatori: giocatori.value, extra: extra.value, config: config.value, storicoAcquisti: storicoAcquisti.value, prossimoOrdineAcquisto: prossimoOrdineAcquisto.value}));
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({giocatori: giocatori.value, extra: extra.value, extraAvversari: extraAvversari.value, config: config.value, storicoAcquisti: storicoAcquisti.value, prossimoOrdineAcquisto: prossimoOrdineAcquisto.value}));
                     const downloadAnchorNode = document.createElement('a');
                     downloadAnchorNode.setAttribute("href",     dataStr);
                     downloadAnchorNode.setAttribute("download", "asta_backup.json");
@@ -1905,9 +1965,9 @@
                     riservaOccResidua, riservaOccConsumata,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
-                    avversari, nomeAvversario, statAvversario, onNumeroAvversariChange, onAvversarioChange, acquistiAvversariNonAssegnati,
+                    avversari, nomeAvversario, statAvversario, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati,
                     composizioneLiberiCat, conicGradientCat,
-                    onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
+                    onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
