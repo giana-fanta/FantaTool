@@ -1,10 +1,19 @@
 {
   "giocatori": [
+      {
+      "nome": "BIJLOW",
+      "ruolo": "P",
+      "cat": "Pun",
+      "max": 11,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
     {
       "nome": "BUTEZ",
       "ruolo": "P",
       "cat": "Pun",
-      "max": 19,
+      "max": 22,
       "stato": "L",
       "costo_reale": 0,
       "note": "eventualmente da trio"
@@ -13,7 +22,7 @@
       "nome": "CAPRILE",
       "ruolo": "P",
       "cat": "Pun",
-      "max": 10,
+      "max": 12,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -49,7 +58,7 @@
       "nome": "FALCONE",
       "ruolo": "P",
       "cat": "Pun",
-      "max": 12,
+      "max": 14,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -85,13 +94,13 @@
       "nome": "MASCARDI",
       "ruolo": "P",
       "cat": "Scm",
-      "max": 8,
+      "max": 10,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
     },
     {
-      "nome": "MERET / MILINKOVIC",
+      "nome": "MERET",
       "ruolo": "P",
       "cat": "Occ",
       "max": 20,
@@ -103,7 +112,7 @@
       "nome": "MURIC",
       "ruolo": "P",
       "cat": "Scm",
-      "max": 8,
+      "max": 10,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -130,7 +139,7 @@
       "nome": "SKORUPSKI",
       "ruolo": "P",
       "cat": "Pun",
-      "max": 12,
+      "max": 14,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -163,19 +172,10 @@
       "note": ""
     },
     {
-      "nome": "TURATI",
-      "ruolo": "P",
-      "cat": "Sca",
-      "max": 1,
-      "stato": "L",
-      "costo_reale": 0,
-      "note": "riserva di Muric"
-    },
-    {
       "nome": "VICARIO",
       "ruolo": "P",
       "cat": "Occ",
-      "max": 25,
+      "max": 30,
       "stato": "L",
       "costo_reale": 0,
       "note": "da trio"
