@@ -683,7 +683,7 @@
                 // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
                 const PESO_CATEGORIA = { Occ: 0.5, Pun: 0.35, Tit: 0.25, Scm: 0.15 }; // default (Sca e altro) = 0.05
 
-                // --- Parametri di fine-tuning del motore MAX_D (proposte ①②③④⑤ + raffinamenti A/B/C/D/E) ---
+                // --- Parametri di fine-tuning del motore MAX_D (proposte ①②③④⑤⑥ + raffinamenti A/B/C/D/E/F) ---
                 // Sono correzioni moltiplicative "piccole" applicate SOPRA la formula originale,
                 // per non alterarne l'ordine di grandezza già validato: agiscono solo quando ci
                 // sono abbastanza dati (altrimenti restano neutre, cioè moltiplicano per 1).
@@ -709,6 +709,14 @@
                 //     (indipendente dal prezzo pagato) rispetto al target H/I già usato altrove nel
                 //     motore, per riflettere la minore necessità di ulteriori giocatori di quella CAT
                 //     una volta raggiunta la quota.
+                //  F) nuovo fattore ⑥ "Riallocazione CAT": tutti i fattori ①-⑤ rispondono a "questa
+                //     CAT sta diventando più cara" con un'unica reazione (alzare il cap). Manca il
+                //     caso speculare — "questa CAT sta costando troppo rispetto al beneficio marginale
+                //     ancora ottenibile, meglio dirottare budget sull'altro bucket di quota ancora
+                //     scoperto nello stesso ruolo" — che qui comprime il cap invece di espanderlo.
+                //     Il "beneficio" non usa il MAX (che è già un segnale di prezzo/disponibilità a
+                //     pagare, non di status): usa PESO_INFLAZIONE, il peso di ambizione/appeal della
+                //     CAT già impiegato altrove (①③) e indipendente dal prezzo di mercato osservato.
                 const FINETUNING = {
                     alphaInflazioneOsservata: 0.20,     // ① peso della spesa realmente osservata sugli Altri
                     n0Inflazione: 4,                     // A/B: n. osservazioni (pesate per CAT) per confidenza piena
@@ -729,7 +737,12 @@
                     moltiplicatoreGiocatoreConteso: 1.15,          // G: maggiorazione manuale per un giocatore noto come molto conteso
                     coefficienteIntervalloDispersione: 0.75,       // G: ampiezza dell'intervallo MAX_D derivata dalla dispersione osservata
                     ampiezzaIntervalloMin: 0.08,                   // G: larghezza minima relativa dell'intervallo quando la dispersione è presente
-                    ampiezzaIntervalloMax: 0.35                    // G: evita intervalli eccessivamente larghi per outlier isolati
+                    ampiezzaIntervalloMax: 0.35,                   // G: evita intervalli eccessivamente larghi per outlier isolati
+                    epsilonRiallocazioneCat: 0.35,                 // F: intensità massima della compressione per riallocazione CAT
+                    riallocazioneCatMin: 0.65,                     // F: pavimento del fattore di riallocazione (mai sotto il 65%)
+                    n0RiallocazioneCat: 4,                         // F: osservazioni reali minime (per lato del confronto) per confidenza piena
+                    sogliaScartoRiallocazione: 0.15,                // F: deadzone — scarto relativo minimo prima che il fattore reagisca
+                    limiteScartoRiallocazione: 1.0                  // F: clamp dello scarto relativo (evita overreaction su outlier)
                 };
 
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
@@ -1674,6 +1687,103 @@
                     return clampValore(1 - FINETUNING.epsilonSazietaGenerale * occupazioneRuolo, FINETUNING.sazietaGeneraleMin, 1);
                 };
 
+                // ⑥ Fattore di riallocazione CAT [nuovo]: mentre ⑤ (sazietà) reagisce DOPO che una
+                // quota è già stata superata (conteggio, indipendente dal prezzo), questo fattore
+                // reagisce PRIMA — mentre la quota è ancora scoperta — quando il costo REALE osservato
+                // per completarla è ormai sproporzionato rispetto al beneficio marginale ancora
+                // ottenibile nell'altro bucket di quota, ancora scoperto, dello stesso ruolo. Non
+                // richiede dati su singoli giocatori né sulle intenzioni altrui: usa solo spesa
+                // osservata reale (già raccolta da ①, mediaCreditiAltriCatInfo) e quote residue (già
+                // usate da ⑤, H/I/L/M), più il peso di status/ambizione di CAT (PESO_INFLAZIONE) già
+                // impiegato altrove come proxy di "beneficio" indipendente dal prezzo di mercato.
+                //
+                // Ambito: solo Occ/Pun/Tit, e solo i due UNICI bucket di quota "di qualità" che il
+                // motore conosce per ruolo — Occ/Pun (target H, residuo L) e Titolari (target I,
+                // residuo M) — non le singole CAT Occ/Pun separatamente, perché il motore non ha un
+                // target di quota individuale per Occ vs Pun (solo aggregato in H). Scm/Sca restano
+                // fuori (nessun target di qualità, come già per ⑤) e il fattore vale sempre 1.
+                const RIALLOCAZIONE_BUCKET = { Occ: 'OccPun', Pun: 'OccPun', Tit: 'Tit' };
+                const RIALLOCAZIONE_CAT_PER_BUCKET = { OccPun: ['Occ', 'Pun'], Tit: ['Tit'] };
+
+                // Prezzo reale osservato per CAT (media Altri, dato facoltativo) e relativa numerosità,
+                // riusando mediaCreditiAltriCatInfo (già usata da ① per l'inflazione ibrida).
+                const costoOsservatoRealeCat = (ruolo, cat) => {
+                    const info = mediaCreditiAltriCatInfo(ruolo, cat);
+                    return { costo: info.media, n: info.numAcquisti };
+                };
+
+                // Tra le CAT del bucket alternativo, individua quella con il miglior rapporto
+                // costo/beneficio (costo reale osservato ÷ peso di status PESO_INFLAZIONE) tra quelle
+                // per cui esiste un dato reale: rappresenta la migliore opportunità di riallocazione
+                // effettivamente disponibile in quel bucket, non una media indiscriminata.
+                const migliorRapportoCBBucket = (ruolo, bucket) => {
+                    let migliore = null;
+                    RIALLOCAZIONE_CAT_PER_BUCKET[bucket].forEach(cat => {
+                        const { costo, n } = costoOsservatoRealeCat(ruolo, cat);
+                        if (!n || !costo) return;
+                        const rapporto = costo / (PESO_INFLAZIONE[cat] || 1);
+                        if (migliore === null || rapporto < migliore.rapporto) migliore = { rapporto, n };
+                    });
+                    return migliore;
+                };
+
+                // Raccoglie tutti gli elementi del confronto (bucket, quote residue, costi/rapporti
+                // osservati, confidenza) in un unico posto, riusato sia dal fattore vero e proprio sia
+                // dall'indicatore di trasparenza (calcolaConfidenzaMaxD), per evitare due logiche che
+                // potrebbero disallinearsi nel tempo. Ritorna null quando il fattore non è applicabile
+                // (Scm/Sca, quota propria già soddisfatta, bucket alternativo saturo o dati reali
+                // insufficienti su uno dei due lati).
+                const analisiRiallocazioneCat = (g, m) => {
+                    const bucketProprio = RIALLOCAZIONE_BUCKET[g.cat];
+                    if (!bucketProprio) return null; // Scm/Sca: nessun target di qualità
+
+                    const bucketAlternativo = bucketProprio === 'OccPun' ? 'Tit' : 'OccPun';
+                    const quotaResiduaPropria = bucketProprio === 'Tit' ? m.M : m.L;
+                    const quotaResiduaAlternativa = bucketAlternativo === 'Tit' ? m.M : m.L;
+
+                    // Se la propria quota è già soddisfatta ci pensa già ⑤; se il bucket alternativo
+                    // è già saturo non esiste una vera alternativa dove dirottare in questo ruolo.
+                    if (quotaResiduaPropria <= 0 || quotaResiduaAlternativa <= 0) return null;
+
+                    const proprio = costoOsservatoRealeCat(g.ruolo, g.cat);
+                    if (!proprio.n || !proprio.costo) return null; // nessun dato reale sulla propria CAT
+
+                    const alternativa = migliorRapportoCBBucket(g.ruolo, bucketAlternativo);
+                    if (!alternativa || !alternativa.rapporto) return null; // nessun dato reale sull'alternativa
+
+                    const rapportoProprio = proprio.costo / (PESO_INFLAZIONE[g.cat] || 1);
+
+                    // Confidenza: richiede un campione minimo affidabile su ENTRAMBI i lati del
+                    // confronto, altrimenti un singolo dato isolato potrebbe innescare una
+                    // compressione ingiustificata (stesso principio A/B/C/D già applicato a ①-④).
+                    const osservazioniEffettive = Math.min(proprio.n, alternativa.n);
+                    const confidenza = sogliaConfidenza(osservazioniEffettive, FINETUNING.n0RiallocazioneCat);
+
+                    // Peso di opportunità: il segnale vale di più quanto più ampio è, in proporzione,
+                    // il residuo ancora disponibile nel bucket alternativo rispetto al proprio —
+                    // dirottare budget su un bucket quasi esaurito porterebbe poco beneficio reale
+                    // anche se conveniente a parità di prezzo.
+                    const pesoOpportunita = quotaResiduaAlternativa / (quotaResiduaAlternativa + quotaResiduaPropria);
+
+                    // Scarto relativo: positivo quando la propria CAT costa, per punto di beneficio,
+                    // più della migliore alternativa ancora scoperta. Una deadzone
+                    // (sogliaScartoRiallocazione) evita che uno scarto trascurabile inneschi già una
+                    // compressione — deve "peggiorare oltre una soglia", non a qualunque differenza.
+                    const scartoGrezzo = (rapportoProprio - alternativa.rapporto) / alternativa.rapporto;
+                    const scarto = clampValore(scartoGrezzo - FINETUNING.sogliaScartoRiallocazione, 0, FINETUNING.limiteScartoRiallocazione);
+
+                    return { confidenza, pesoOpportunita, scarto };
+                };
+
+                const fattoreRiallocazioneCat = (g, m) => {
+                    const a = analisiRiallocazioneCat(g, m);
+                    if (!a || a.confidenza <= 0 || a.scarto <= 0) return 1;
+                    return clampValore(
+                        1 - FINETUNING.epsilonRiallocazioneCat * a.confidenza * a.pesoOpportunita * a.scarto,
+                        FINETUNING.riallocazioneCatMin, 1
+                    );
+                };
+
                 // Intervallo di incertezza MAX_D: il centro resta il risultato del motore, mentre
                 // la dispersione osservata amplia il range. Non tenta di indovinare il secondo prezzo:
                 // rende esplicita l'incertezza dovuta alla domanda eterogenea.
@@ -1717,7 +1827,7 @@
                 };
 
                 // Motore Ricalcolo MAX_D — parte dalla formula originale (replica esatta del foglio
-                // Excel P/D/C/A) e vi applica sopra 5 correzioni di fine-tuning (①②③④⑤), ciascuna a
+                // Excel P/D/C/A) e vi applica sopra 6 correzioni di fine-tuning (①②③④⑤⑥), ciascuna a
                 // sua volta raffinata (A/B/C/D/E, vedi commenti su FINETUNING e sulle singole funzioni)
                 // per affinare ulteriormente la stima senza cambiarne l'ordine di grandezza già validato.
                 // Restituisce sempre un numero (anche per uno "L" ipotetico), usato sia per la colonna
@@ -1836,7 +1946,14 @@
                     const sazieta = fattoreSazieta(g, m);
                     const sazietaGenerale = fattoreSazietaGenerale(m);
 
-                    let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank * sazieta * sazietaGenerale);
+                    // ⑥ Riallocazione CAT [nuovo]: comprime il cap, prima ancora che la quota sia
+                    // raggiunta, quando il costo reale osservato per completarla è ormai sproporzionato
+                    // rispetto al beneficio marginale ancora ottenibile nell'altro bucket di quota
+                    // scoperto dello stesso ruolo — segnalando implicitamente "meglio dirottare qui il
+                    // budget residuo" invece di rincorrere il prezzo.
+                    const riallocazioneCat = fattoreRiallocazioneCat(g, m);
+
+                    let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank * sazieta * sazietaGenerale * riallocazioneCat);
 
                     // [Nuovo] Segnale manuale di domanda molto contesa: non prova a stimare il rivale,
                     // ma incorpora l'informazione qualitativa che l'utente possiede e i dati aggregati non possono vedere.
@@ -1879,11 +1996,13 @@
                 // indicare quanto derivi da dati osservati e quanto sia ancora la formula statica di
                 // base (MAX_base raffinato dai soli fattori strutturali V/W/X, sazietà, ecc., che non
                 // dipendono da osservazioni "Altri"). Questa funzione NON introduce una nuova formula di
-                // prezzo: riusa esattamente le stesse 4 rampe sogliaConfidenza già calcolate dal motore
+                // prezzo: riusa esattamente le stesse 5 rampe sogliaConfidenza già calcolate dal motore
                 // per il giocatore in questione (①inflazione ibrida, ②pressione avversari, ③momentum,
-                // ④rank in CAT) e ne fa la media semplice, in percentuale 0-100%, solo per l'interfaccia.
-                // 0% = nessuna delle 4 correzioni è attiva (equivale quasi a MAX_base); 100% = tutte e
-                // quattro sono a piena confidenza (campione sufficiente su tutti i fronti).
+                // ④rank in CAT, ⑥riallocazione CAT) e ne fa la media semplice, in percentuale 0-100%,
+                // solo per l'interfaccia. 0% = nessuna delle 5 correzioni è attiva (equivale quasi a
+                // MAX_base); 100% = tutte e cinque sono a piena confidenza (campione sufficiente su
+                // tutti i fronti). ⑤ (sazietà) resta fuori perché non dipende da dati "Altri" osservati
+                // ma solo dal conteggio dei propri acquisti, sempre certo per definizione.
                 const calcolaConfidenzaMaxD = (g) => {
                     if (nessunAcquistoEffettuato.value) return 0;
                     const m = metrics.value[g.ruolo];
@@ -1913,7 +2032,14 @@
                     // ④ stessa numerosità originaria della CAT usata dal fattore di rank
                     const confRank = sogliaConfidenza(countCat(g.ruolo, g.cat), FINETUNING.sogliaCampioneRank);
 
-                    const media = (confInflazione + confPressione + confMomentum + confRank) / 4;
+                    // ⑥ stessa analisi (bucket/costi/confidenza) usata dal fattore di riallocazione CAT;
+                    // 0 quando il fattore non è applicabile (Scm/Sca, quota già soddisfatta, bucket
+                    // alternativo saturo o dati reali insufficienti) — coerente con "0% = nessuna
+                    // correzione attiva" per gli altri fattori in questa stessa media.
+                    const analisiRialloc = analisiRiallocazioneCat(g, m);
+                    const confRiallocazione = analisiRialloc ? analisiRialloc.confidenza : 0;
+
+                    const media = (confInflazione + confPressione + confMomentum + confRank + confRiallocazione) / 5;
                     return Math.round(media * 100);
                 };
 
