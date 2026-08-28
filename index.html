@@ -546,7 +546,9 @@
                     deltaRank: 0.12,                          // ④ peso massimo del bonus di posizione in CAT
                     sogliaCampioneRank: 6,                     // D: n. giocatori originari in CAT per confidenza piena
                     epsilonSazieta: 0.15,                       // E: riduzione di MAX_D per ogni giocatore "oltre quota" nella CAT
-                    sazietaMin: 0.5                              // E: pavimento del fattore di sazietà (mai sotto il 50%)
+                    sazietaMin: 0.5,                             // E: pavimento del fattore di sazietà (mai sotto il 50%)
+                    epsilonSazietaGenerale: 0.2,                 // F: riduzione di MAX_D in base al solo riempimento fisico del ruolo (indipendente da CAT)
+                    sazietaGeneraleMin: 0.8                      // F: pavimento della sazietà generale (mai sotto l'80%, effetto volutamente più soft di quella per-CAT)
                 };
 
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
@@ -1204,6 +1206,21 @@
                     return clampValore(1 - FINETUNING.epsilonSazieta * surplus, FINETUNING.sazietaMin, 1);
                 };
 
+                // ⑤bis Fattore di sazietà generale [nuovo, indipendente da CAT]: fattoreSazieta guarda
+                // solo lo scostamento tra quanto preso e il target "di qualità" per CAT (H per Occ/Pun,
+                // I per Titolari) — Scm/Sca ne restano fuori e valgono sempre 1, e anche per Occ/Pun/Tit
+                // l'effetto scatta solo dopo aver superato la propria quota. Ma il riempimento fisico del
+                // ruolo (quanti slot sono già occupati, qualunque sia la CAT con cui sono stati riempiti)
+                // ha comunque un effetto reale sulla convenienza di continuare a spendere lì, anche prima
+                // che una singola CAT sia satura e anche per le CAT residuali. Questo fattore agisce quindi
+                // su TUTTE le CAT (incluse Scm/Sca), è più soft di quello per-CAT (pavimento sazietaGeneraleMin
+                // più alto) e si somma moltiplicativamente ad esso, non lo sostituisce.
+                const fattoreSazietaGenerale = (m) => {
+                    if (!m.slotTot) return 1;
+                    const occupazioneRuolo = (m.slotTot - m.slotLiberi) / m.slotTot;
+                    return clampValore(1 - FINETUNING.epsilonSazietaGenerale * occupazioneRuolo, FINETUNING.sazietaGeneraleMin, 1);
+                };
+
                 // Motore Ricalcolo MAX_D — parte dalla formula originale (replica esatta del foglio
                 // Excel P/D/C/A) e vi applica sopra 5 correzioni di fine-tuning (①②③④⑤), ciascuna a
                 // sua volta raffinata (A/B/C/D/E, vedi commenti su FINETUNING e sulle singole funzioni)
@@ -1217,8 +1234,15 @@
                     // primissimo e incondizionato, esattamente come nella versione originale.
                     if (nessunAcquistoEffettuato.value) return g.max;
 
-                    const pesoCategoria = PESO_CATEGORIA[g.cat] !== undefined ? PESO_CATEGORIA[g.cat] : 0.05;
                     const m = metrics.value[g.ruolo];
+                    // [Correzione] Slot fisicamente esauriti per questo ruolo: non è più possibile
+                    // acquistare nessun altro giocatore lì, indipendentemente da budget/sazietà/altri
+                    // fattori. A differenza del pavimento-sentinella "1" usato altrove in questa
+                    // funzione (valore ancora "acquistabile"), qui il valore corretto è 0: non è un
+                    // prezzo minimo spendibile, è l'assenza fisica di un posto dove spenderlo.
+                    if (m.slotLiberi <= 0) return 0;
+
+                    const pesoCategoria = PESO_CATEGORIA[g.cat] !== undefined ? PESO_CATEGORIA[g.cat] : 0.05;
                     // [Raffinamento] Coefficiente di guadagno per ruolo che amplifica solo l'uso di F
                     // dentro moltiplicatoreCategoria, per compensare la diluizione strutturale di F
                     // nei ruoli con listone più grande (es. C). F stesso resta invariato per gli altri
@@ -1291,8 +1315,9 @@
                     // ⑤ Sazietà [Raffinamento E]: riduce la priorità (indipendentemente dal prezzo
                     // pagato) quando la quota di Occ/Pun o Titolari nel ruolo è già stata raggiunta.
                     const sazieta = fattoreSazieta(g, m);
+                    const sazietaGenerale = fattoreSazietaGenerale(m);
 
-                    let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank * sazieta);
+                    let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank * sazieta * sazietaGenerale);
                     return valore < 1 ? 1 : valore;
                 };
 
