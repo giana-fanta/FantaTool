@@ -217,7 +217,7 @@
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(metrics[ruolo].spesaReale) }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(metrics[ruolo].budgetTarget - metrics[ruolo].spesaReale) }}</td>
                     <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ formatPct(metrics[ruolo].budgetTarget ? metrics[ruolo].spesaReale / metrics[ruolo].budgetTarget : 0) }}</td>
-                    <td>{{ round2(creditiPerSlotReale(ruolo)) }}</td>
+                    <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(creditiPerSlotReale(ruolo)) }}</td>
                     <td>
                         <div class="slot-avv-stats">
                             <span class="slot-avv-item" title="Slot riempiti / Slot totali richiesti dagli avversari">{{ statoSlotAvversari(ruolo).riempiti }} / {{ statoSlotAvversari(ruolo).totale }}</span>
