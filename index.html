@@ -37,6 +37,9 @@
         .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; }
         .badge-ok { background: #223a2c; color: #7fd8ab; }
         .badge-warn { background: #3d2730; color: #e8919e; }
+        /* Badge di confidenza accanto a MAX_D (punto 5): grigio neutro, non un giudizio di valore
+           come badge-ok/badge-warn, solo un'indicazione di "quanto dato reale" c'è dietro il numero. */
+        .badge-conf { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); font-weight: normal; margin-left: 5px; cursor: help; }
         
         /* Inputs & Buttons */
         select, input[type="number"], input[type="text"] { padding: 6px; border: 1px solid var(--border); border-radius: 4px; width: 100%; box-sizing: border-box; background: var(--surface-alt); color: #ced3dd; }
@@ -211,6 +214,8 @@
                 </div>
             </div>
 
+            <p class="note">⚠️ Le stime su "Altri" che alimentano MAX_D (pressione avversari, capacità di spesa residua stimata) sono calcolate in aggregato su tutti e 9 gli avversari: non distinguono un rivale ormai "al verde" da uno con budget ancora intatto, quindi possono sottostimare la pressione reale su un giocatore conteso da un singolo avversario ricco. Trattale come indicazione di massima, da integrare con quello che sai per conoscenza diretta dei singoli avversari.</p>
+
             <h2>Situazione Reparti</h2>
             <div class="table-container">
             <table>
@@ -328,7 +333,13 @@
                     <td><strong>{{ g.nome }}</strong></td>
                     <td v-if="!datiSensibiliNascosti">{{ g.cat }}</td>
                     <td v-if="!datiSensibiliNascosti">{{ g.max }}</td>
-                    <td v-if="!datiSensibiliNascosti"><strong>{{ calcolaMaxD(g) }}</strong></td>
+                    <td v-if="!datiSensibiliNascosti">
+                        <strong>{{ calcolaMaxD(g) }}</strong>
+                        <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA'" class="badge badge-conf"
+                              title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
+                            {{ calcolaConfidenzaMaxD(g) }}%
+                        </span>
+                    </td>
                     <td>
                         <div class="stato-checkboxes">
                             <label :class="{ 'chk-mio': g.stato === 'M' }">
@@ -439,7 +450,13 @@
                             <button type="button" class="star-btn active" @click="togglePreferito(g)" title="Rimuovi dai preferiti">★</button>
                         </td>
                         <td>{{ g.nome }}</td>
-                        <td><strong>{{ calcolaMaxD(g) }}</strong></td>
+                        <td>
+                            <strong>{{ calcolaMaxD(g) }}</strong>
+                            <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA'" class="badge badge-conf"
+                                  title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
+                                {{ calcolaConfidenzaMaxD(g) }}%
+                            </span>
+                        </td>
                         <td>{{ g.stato === 'L' ? 'Libero' : (g.stato === 'M' ? 'Mio' : 'Altri') }}</td>
                         <td style="font-size: 11px;">{{ g.note }}</td>
                     </tr>
@@ -985,6 +1002,19 @@
                 // il punto dell'asta in cui si trovano, <1 se ne hanno meno (es. hanno speso più del
                 // previsto altrove, o sono "al verde"). Resta vicino a 1 finché mancano abbastanza
                 // osservazioni (vedi n0PressioneAvversari), dato che i costi "Altri" sono facoltativi.
+                //
+                // LIMITE NOTO ("tirannia della media", lato budget — stessa radice del limite analogo
+                // lato prezzo-giocatore): budgetTotaleAltri e creditiSpesiAltriTotali sono somme
+                // aggregate su tutti e 9 gli avversari. Uno scenario con 8 avversari "al verde" e 1 con
+                // budget pieno produce lo STESSO valore aggregato di uno scenario con tutti e 9 a budget
+                // moderato — ma la pressione competitiva reale su un giocatore conteso è radicalmente
+                // diversa (nel primo caso basta superare la disponibilità di un solo rivale ricco). Il
+                // modello non distingue i due casi perché non traccia la distribuzione per singolo
+                // manager (l'acquisto "Altri" non è associato a un manager specifico, solo alla
+                // collettività "Altri"): servirebbe un cambio di modello dati (tracciare gli acquisti
+                // per manager) per risolverlo tecnicamente. Per ora la scelta è documentare il limite
+                // (anche in UI, vedi nota nel Control Panel) invece di correggerlo, così l'utente sa di
+                // dover integrare il numero con il proprio giudizio qualitativo caso per caso.
                 const capacitaSpesaAltri = computed(() => {
                     const budgetTotaleAltri = NUM_AVVERSARI * (config.value.budget_iniziale || 0);
                     if (budgetTotaleAltri <= 0) return 1;
@@ -1376,6 +1406,44 @@
 
                 const calcolaMaxD = (g) => g.stato !== 'L' ? '-' : calcolaMaxDNumerico(g);
 
+                // [Trasparenza / punto 5] Confidenza aggregata delle correzioni dinamiche di MAX_D.
+                // I parametri n0Inflazione/n0PressioneAvversari/n0Momentum/sogliaCampioneRank fanno sì
+                // che, con costi "Altri" facoltativi, per gran parte dell'asta le correzioni restino a
+                // bassa confidenza — ma calcolaMaxDNumerico restituisce comunque un numero secco, senza
+                // indicare quanto derivi da dati osservati e quanto sia ancora la formula statica di
+                // base (MAX_base raffinato dai soli fattori strutturali V/W/X, sazietà, ecc., che non
+                // dipendono da osservazioni "Altri"). Questa funzione NON introduce una nuova formula di
+                // prezzo: riusa esattamente le stesse 4 rampe sogliaConfidenza già calcolate dal motore
+                // per il giocatore in questione (①inflazione ibrida, ②pressione avversari, ③momentum,
+                // ④rank in CAT) e ne fa la media semplice, in percentuale 0-100%, solo per l'interfaccia.
+                // 0% = nessuna delle 4 correzioni è attiva (equivale quasi a MAX_base); 100% = tutte e
+                // quattro sono a piena confidenza (campione sufficiente su tutti i fronti).
+                const calcolaConfidenzaMaxD = (g) => {
+                    if (nessunAcquistoEffettuato.value) return 0;
+                    const m = metrics.value[g.ruolo];
+                    if (m.slotLiberi <= 0) return 0;
+
+                    // ① stessa fonte dati di calcolaMaxDNumerico: osservazioni "Altri" per CAT nel ruolo
+                    let numOsservazioniRuolo = 0;
+                    CATEGORIE_PIE.forEach(cat => {
+                        numOsservazioniRuolo += mediaCreditiAltriCatInfo(g.ruolo, cat).numAcquisti;
+                    });
+                    const confInflazione = sogliaConfidenza(numOsservazioniRuolo, FINETUNING.n0Inflazione);
+
+                    // ② stesso conteggio globale usato per attivare la correzione di capacitaSpesaAltri
+                    const confPressione = sogliaConfidenza(numOsservazioniAltriTotali.value, FINETUNING.n0PressioneAvversari);
+
+                    // ③ stesso storico transazioni (Mio + Altri) filtrato per ruolo, usato dal momentum
+                    const nMomentum = storicoAcquisti.value.filter(t => t.ruolo === g.ruolo && t.rapporto > 0).length;
+                    const confMomentum = sogliaConfidenza(nMomentum, FINETUNING.n0Momentum);
+
+                    // ④ stessa numerosità originaria della CAT usata dal fattore di rank
+                    const confRank = sogliaConfidenza(countCat(g.ruolo, g.cat), FINETUNING.sogliaCampioneRank);
+
+                    const media = (confInflazione + confPressione + confMomentum + confRank) / 4;
+                    return Math.round(media * 100);
+                };
+
                 // --- RICERCA, FILTRI E ORDINAMENTO ---
 
                 const categorie = ['Occ', 'Pun', 'Tit', 'Scm', 'Sca'];
@@ -1517,7 +1585,7 @@
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo, togglePreferito, giocatoriPreferitiPerRuolo, stepExtra,
-                    calcolaMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
+                    calcolaMaxD, calcolaConfidenzaMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
                     accessGranted, inputAccesso, erroreAccesso, tentaAccesso
