@@ -247,7 +247,7 @@
       "nome": "BIRINDELLI",
       "ruolo": "D",
       "cat": "Pun",
-      "max": 6,
+      "max": 2,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -256,7 +256,7 @@
       "nome": "BISSECK",
       "ruolo": "D",
       "cat": "Occ",
-      "max": 8,
+      "max": 9,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -283,7 +283,7 @@
       "nome": "BUONGIORNO",
       "ruolo": "D",
       "cat": "Tit",
-      "max": 2,
+      "max": 1,
       "stato": "L",
       "costo_reale": 0,
       "note": "INF. Recupera a metà Novembre"
@@ -328,7 +328,7 @@
       "nome": "CHALOBAH",
       "ruolo": "D",
       "cat": "Scm",
-      "max": 1,
+      "max": 5,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -418,7 +418,7 @@
       "nome": "DODO'",
       "ruolo": "D",
       "cat": "Tit",
-      "max": 7,
+      "max": 4,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -472,7 +472,7 @@
       "nome": "FORTINI",
       "ruolo": "D",
       "cat": "Scm",
-      "max": 1,
+      "max": 3,
       "stato": "L",
       "costo_reale": 0,
       "note": "con Pedersen"
@@ -562,7 +562,7 @@
       "nome": "HERMOSO",
       "ruolo": "D",
       "cat": "Pun",
-      "max": 8,
+      "max": 9,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -685,7 +685,7 @@
       "note": ""
     },
     {
-      "nome": "L.RANIERI",
+      "nome": "RANIERI L.",
       "ruolo": "D",
       "cat": "Sca",
       "max": 1,
@@ -724,7 +724,7 @@
       "nome": "MANCINI",
       "ruolo": "D",
       "cat": "Occ",
-      "max": 8,
+      "max": 9,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -751,7 +751,7 @@
       "nome": "MINA",
       "ruolo": "D",
       "cat": "Tit",
-      "max": 2,
+      "max": 1,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -813,7 +813,7 @@
     {
       "nome": "OBERT",
       "ruolo": "D",
-      "cat": "Tit",
+      "cat": "Pun",
       "max": 2,
       "stato": "L",
       "costo_reale": 0,
@@ -850,7 +850,7 @@
       "nome": "OSTIGARD",
       "ruolo": "D",
       "cat": "Pun",
-      "max": 7,
+      "max": 8,
       "stato": "L",
       "costo_reale": 0,
       "note": "Rig."
@@ -877,7 +877,7 @@
       "nome": "PAVLOVIC",
       "ruolo": "D",
       "cat": "Occ",
-      "max": 10,
+      "max": 8,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -886,7 +886,7 @@
       "nome": "PEDERSEN",
       "ruolo": "D",
       "cat": "Pun",
-      "max": 6,
+      "max": 4,
       "stato": "L",
       "costo_reale": 0,
       "note": "con Fortini"
@@ -904,7 +904,7 @@
       "nome": "RAMON",
       "ruolo": "D",
       "cat": "Pun",
-      "max": 7,
+      "max": 6,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -922,7 +922,7 @@
       "nome": "ROMAGNOLI",
       "ruolo": "D",
       "cat": "Tit",
-      "max": 3,
+      "max": 1,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -976,7 +976,7 @@
       "nome": "SPENCE",
       "ruolo": "D",
       "cat": "Occ",
-      "max": 11,
+      "max": 9,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
