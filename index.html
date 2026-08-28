@@ -1196,9 +1196,26 @@
                 const slotOccupati = computed(() => slotTotali.value - slotLiberiTotali.value);
 
                 const nessunAcquistoEffettuato = computed(() => {
-                    const nessunGiocatoreComprato = !giocatori.value.some(g => g.stato === 'M');
-                    const nessunExtraUsato = ['P', 'D', 'C', 'A'].every(r => !(extra.value[r]?.slot) && !(extra.value[r]?.crediti));
-                    return nessunGiocatoreComprato && nessunExtraUsato;
+                    // L'asta è iniziata al primo acquisto effettuato da QUALSIASI partecipante,
+                    // non soltanto dall'utente. Un giocatore assegnato a un avversario è già un
+                    // acquisto anche se il costo reale non è stato ancora inserito; lo stesso vale
+                    // per gli Extra degli avversari. Questo stato alimenta anche l'attivazione del
+                    // MAX_D dinamico tramite tutte le condizioni che dipendono da nessunAcquistoEffettuato.
+                    const nessunGiocatoreComprato = !giocatori.value.some(g => g.stato === 'M' || g.stato === 'A');
+                    const nessunExtraMioUsato = ['P', 'D', 'C', 'A'].every(r => !(extra.value[r]?.slot) && !(extra.value[r]?.crediti));
+                    const nessunExtraAvversariUsato = !avversari.value.some(avv =>
+                        ['P', 'D', 'C', 'A'].some(r => {
+                            const e = extraAvversarioRuolo(avv.id, r);
+                            return Number(e.slot || 0) > 0 || Number(e.crediti || 0) > 0;
+                        })
+                    );
+                    const nessunExtraLegacyAvversariUsato = ['P', 'D', 'C', 'A'].every(r =>
+                        !(extra.value[r]?.slotAvversariExtra) && !(extra.value[r]?.creditiAvversariExtra)
+                    );
+                    return nessunGiocatoreComprato &&
+                           nessunExtraMioUsato &&
+                           nessunExtraAvversariUsato &&
+                           nessunExtraLegacyAvversariUsato;
                 });
                 const statoAsta = computed(() => nessunAcquistoEffettuato.value ? 'NON INIZIATA' : 'IN CORSO');
 
