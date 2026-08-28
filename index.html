@@ -810,9 +810,17 @@
                     const M = Math.max(0, I - K);
                     const N = Math.max(0, slotLiberi - L - M);
 
-                    const O = slotTot ? (budgetTarget / slotTot) * 1.425 / 1.2425 : 0;
-                    const P = slotTot ? (budgetTarget / slotTot) * 1.25 / 1.2425 : 0;
-                    const Q = slotTot ? (budgetTarget / slotTot) * 1.1 / 1.2425 : 0;
+                    // Costante di normalizzazione specifica per ruolo (sostituisce il vecchio 1.2425
+                    // fisso, calibrato solo sulle quote di P). E' derivata dagli stessi H/I (con lo
+                    // stesso Math.ceil) e dal complemento statico Nfull = slotTot - H - I, in modo che
+                    // R (costo atteso totale del ruolo) torni ad essere ESATTAMENTE budgetTarget a
+                    // inizio asta (L=H, M=I, N=Nfull), per tutti i ruoli e non solo per P.
+                    const Nfull = Math.max(0, slotTot - H - I);
+                    const denomRuolo = slotTot ? (H * 1.425 + I * 1.25 + Nfull * 1.1) / slotTot : 1.2425;
+
+                    const O = slotTot ? (budgetTarget / slotTot) * 1.425 / denomRuolo : 0;
+                    const P = slotTot ? (budgetTarget / slotTot) * 1.25 / denomRuolo : 0;
+                    const Q = slotTot ? (budgetTarget / slotTot) * 1.1 / denomRuolo : 0;
 
                     const R = L * O + M * P + N * Q;
                     const S = Math.max(0, L - 1) * O + M * P + Math.max(0, slotLiberi - 1 - Math.max(0, L - 1) - M) * Q;
