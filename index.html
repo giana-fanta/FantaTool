@@ -304,7 +304,7 @@
                             <span class="slot-avv-sep">·</span>
                             <span class="slot-avv-item" title="Percentuale di slot già riempiti">{{ formatPct(statoSlotAvversari(ruolo).pct) }}</span>
                             <span class="slot-avv-sep">·</span>
-                            <span class="slot-avv-item" title="Slot mancanti in media per ogni avversario">{{ round2(statoSlotAvversari(ruolo).mediaMancante) }} media</span>
+                            <span class="slot-avv-item" title="Slot riempiti in media per ogni avversario">{{ round2(statoSlotAvversari(ruolo).mediaRiempiti) }} media</span>
                         </div>
                     </td>
                     <td>
@@ -1092,7 +1092,8 @@
                         totale,
                         pct: totale ? riempiti / totale : 0,
                         mancanti,
-                        mediaMancante: numeroAvversari.value ? mancanti / numeroAvversari.value : 0
+                        mediaMancante: numeroAvversari.value ? mancanti / numeroAvversari.value : 0,
+                        mediaRiempiti: numeroAvversari.value ? riempiti / numeroAvversari.value : 0
                     };
                 };
 
