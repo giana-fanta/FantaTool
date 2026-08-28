@@ -99,6 +99,13 @@
         .checkbox-group label:has(input[value="L"]:checked) { background: #1f3327; border-color: var(--success); color: var(--success); }
         .checkbox-group label:has(input[value="M"]:checked) { background: #3a262b; border-color: #e8919e; color: #e8919e; }
         .checkbox-group label:has(input[value="A"]:checked) { background: #202c40; border-color: #8fb3ea; color: #8fb3ea; }
+        /* Checkbox Mio/Altri nella tabella STATO (sostituiscono la tendina, default = Libero) */
+        .stato-checkboxes { display: flex; gap: 6px; flex-wrap: wrap; }
+        .stato-checkboxes label { font-size: 12.5px; font-weight: normal; display: flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap; padding: 4px 8px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+        .stato-checkboxes label:hover { border-color: #4d5566; }
+        .stato-checkboxes input[type="checkbox"] { width: auto; margin: 0; accent-color: var(--primary); }
+        .stato-checkboxes label.chk-mio { background: #3a262b; border-color: #e8919e; color: #e8919e; }
+        .stato-checkboxes label.chk-altri { background: #202c40; border-color: #8fb3ea; color: #8fb3ea; }
         .btn-reset-filtri { padding: 8px 12px; font-size: 13px; }
         .link-btn { background: none; border: none; color: var(--primary); font-size: 11px; cursor: pointer; padding: 0; text-decoration: underline; }
         th.th-ordinabile { cursor: pointer; user-select: none; }
@@ -319,11 +326,14 @@
                     <td v-if="!datiSensibiliNascosti">{{ g.max }}</td>
                     <td v-if="!datiSensibiliNascosti"><strong>{{ calcolaMaxD(g) }}</strong></td>
                     <td>
-                        <select v-model="g.stato" @change="onUpdateStato(g)">
-                            <option value="L">Liberi (L)</option>
-                            <option value="M">Mio (M)</option>
-                            <option value="A">Altri (A)</option>
-                        </select>
+                        <div class="stato-checkboxes">
+                            <label :class="{ 'chk-mio': g.stato === 'M' }">
+                                <input type="checkbox" :checked="g.stato === 'M'" @change="toggleStato(g, 'M')"> Mio
+                            </label>
+                            <label :class="{ 'chk-altri': g.stato === 'A' }">
+                                <input type="checkbox" :checked="g.stato === 'A'" @change="toggleStato(g, 'A')"> Altri
+                            </label>
+                        </div>
                     </td>
                     <td>
                         <input type="number" min="0" v-model.number="g.costo_reale" 
@@ -1389,6 +1399,16 @@
                     salvaStato();
                 };
 
+                // Imposta lo STATO tramite le checkbox "Mio"/"Altri": clic su una checkbox già
+                // selezionata torna a "Libero" (deselezione), clic sull'altra la seleziona e
+                // deseleziona automaticamente quella opposta (mutua esclusione), esattamente
+                // come avveniva con le tre opzioni del menù a tendina. La logica di aggiornamento
+                // (onUpdateStato/salvaStato) resta invariata.
+                const toggleStato = (g, valore) => {
+                    g.stato = (g.stato === valore) ? 'L' : valore;
+                    onUpdateStato(g);
+                };
+
                 const esportaDati = () => {
                     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({giocatori: giocatori.value, extra: extra.value, config: config.value, storicoAcquisti: storicoAcquisti.value, prossimoOrdineAcquisto: prossimoOrdineAcquisto.value}));
                     const downloadAnchorNode = document.createElement('a');
@@ -1453,7 +1473,7 @@
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, giocatoriMieiPerRuolo, togglePreferito, giocatoriPreferitiPerRuolo, stepExtra,
-                    calcolaMaxD, onUpdateStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
+                    calcolaMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
                     accessGranted, inputAccesso, erroreAccesso, tentaAccesso
