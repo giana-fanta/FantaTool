@@ -196,8 +196,10 @@
             </div>
         </div>
 
-        <!-- CONTROL PANEL -->
-        <div v-if="currentTab === 'Control_Panel'">
+        <!-- IMPOSTAZIONI ALTRI PARTECIPANTI -->
+        <div v-if="currentTab === 'Impostazioni_Altri'">
+            <h2>Impostazioni Altri Partecipanti</h2>
+            <p class="note">Configura il numero degli avversari e i relativi nomi. Questi dati determinano i partecipanti disponibili nelle tendine di assegnazione e la capacità economica individuale utilizzata dal motore.</p>
             <div class="config-avversari">
                 <div class="config-avversari-head">
                     <div class="campo">
@@ -223,7 +225,10 @@
                 </div>
                 <p class="note" v-if="acquistiAvversariNonAssegnati > 0" style="margin:10px 0 0 0;">⚠️ Ci sono {{ acquistiAvversariNonAssegnati }} acquisti avversari con costo già registrato ma senza partecipante assegnato. Fino a quando non li assegni, il motore mantiene la vecchia logica aggregata per non inventare a quale avversario appartengano.</p>
             </div>
+        </div>
 
+        <!-- CONTROL PANEL -->
+        <div v-if="currentTab === 'Control_Panel'">
             <div class="dashboard-grid">
                 <div class="card">
                     <h3>Crediti Spesi</h3>
@@ -624,7 +629,7 @@
 
         createApp({
             setup() {
-                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra', 'Altre_Squadre', 'Salvati'];
+                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra', 'Altre_Squadre', 'Impostazioni_Altri', 'Salvati'];
                 const currentTab = ref('Control_Panel');
                 const datiSensibiliNascosti = ref(false);
                 
