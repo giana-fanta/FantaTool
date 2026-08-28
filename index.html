@@ -26,6 +26,11 @@
         .squadra-ruolo { margin-bottom: 22px; }
         .squadra-ruolo-titolo { color: var(--squadra); margin: 0 0 8px 0; font-size: 16px; }
         .squadra-panel h2 { color: var(--squadra); }
+        .avversari-team-panel { margin-bottom: 22px; }
+        .avversari-team-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px; }
+        .avversari-team-head h3 { margin:0; color:var(--squadra); font-size:16px; }
+        .avversari-team-meta { font-size:12px; color:var(--text-muted); }
+        .avversari-team-total { margin-top:8px; font-size:12px; color:var(--text-muted); text-align:right; }
         
         /* Tabelle */
         .table-container { overflow-x: auto; }
@@ -185,7 +190,7 @@
 
         <div class="tabs">
             <div v-for="tab in tabs" :key="tab" 
-                 :class="['tab', { active: currentTab === tab, 'tab-squadra': tab === 'Mia_Squadra' || tab === 'Salvati' }]" 
+                 :class="['tab', { active: currentTab === tab, 'tab-squadra': tab === 'Mia_Squadra' || tab === 'Altre_Squadre' || tab === 'Salvati' }]" 
                  @click="currentTab = tab">
                 {{ tab.replace('_', ' ') }}
             </div>
@@ -503,6 +508,35 @@
             </div>
         </div>
 
+        <!-- ALTRE SQUADRE -->
+        <div v-if="currentTab === 'Altre_Squadre'" class="table-container squadra-panel">
+            <h2>Altre Squadre</h2>
+            <p class="note">Ogni avversario viene mostrato separatamente. Per ciascun ruolo sono riportati i giocatori effettivamente assegnati a quel partecipante e il relativo costo reale.</p>
+            <div v-if="avversari.length">
+                <div v-for="avv in avversari" :key="'squadra-avv-' + avv.id" class="avversari-team-panel">
+                    <div class="avversari-team-head">
+                        <h3>{{ avv.nome || avv.id }}</h3>
+                        <span class="avversari-team-meta">Residuo {{ round2(statAvversario(avv.id).budgetResiduo) }} · {{ statAvversario(avv.id).slotOccupati }}/{{ statAvversario(avv.id).slotTotali }} slot</span>
+                    </div>
+                    <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="avv.id + '-ruolo-' + ruolo" class="squadra-ruolo">
+                        <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
+                        <table>
+                            <tr><th>Nome</th><th>Costo Reale</th></tr>
+                            <tr v-for="g in giocatoriAvversarioPerRuolo(avv.id, ruolo)" :key="avv.id + '-' + g.nome">
+                                <td>{{ g.nome }}</td>
+                                <td>{{ g.costo_reale || 0 }}</td>
+                            </tr>
+                            <tr v-if="!giocatoriAvversarioPerRuolo(avv.id, ruolo).length">
+                                <td colspan="2" style="text-align:center; color: var(--text-muted);">Nessun giocatore</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="avversari-team-total">Spesa giocatori: <strong>{{ round2(statAvversario(avv.id).spesaGiocatori) }}</strong> · Extra: <strong>{{ round2(statAvversario(avv.id).extraCrediti) }}</strong> · Totale: <strong>{{ round2(statAvversario(avv.id).spesa) }}</strong></div>
+                </div>
+            </div>
+            <p class="note" v-else>Nessun avversario configurato.</p>
+        </div>
+
         <!-- SALVATI (PREFERITI) -->
         <div v-if="currentTab === 'Salvati'" class="table-container squadra-panel">
             <h2>Giocatori Salvati</h2>
@@ -590,7 +624,7 @@
 
         createApp({
             setup() {
-                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra', 'Salvati'];
+                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra', 'Altre_Squadre', 'Salvati'];
                 const currentTab = ref('Control_Panel');
                 const datiSensibiliNascosti = ref(false);
                 
@@ -935,13 +969,14 @@
                     const acquisti = acquistiAvversario(avversarioId);
                     const extraSlot = ['P','D','C','A'].reduce((s, r) => s + Number(extraAvversarioRuolo(avversarioId, r).slot || 0), 0);
                     const extraCrediti = ['P','D','C','A'].reduce((s, r) => s + Number(extraAvversarioRuolo(avversarioId, r).crediti || 0), 0);
-                    const spesa = acquisti.reduce((s, g) => s + (g.costo_reale || 0), 0) + extraCrediti;
+                    const spesaGiocatori = acquisti.reduce((s, g) => s + (g.costo_reale || 0), 0);
+                    const spesa = spesaGiocatori + extraCrediti;
                     const slotTotali = ['P','D','C','A'].reduce((s, r) => s + (config.value.slot_ruoli[r] || 0), 0);
                     const slotOccupati = acquisti.length + extraSlot;
                     return {
                         budgetIniziale: Number(config.value.budget_iniziale || 0),
                         budgetResiduo: Math.max(0, Number(config.value.budget_iniziale || 0) - spesa),
-                        spesa, extraSlot, extraCrediti, slotTotali, slotOccupati,
+                        spesa, spesaGiocatori, extraSlot, extraCrediti, slotTotali, slotOccupati,
                         slotLiberi: Math.max(0, slotTotali - slotOccupati)
                     };
                 };
@@ -1269,7 +1304,7 @@
                 //
                 // LIMITE NOTO ("tirannia della media", lato budget — stessa radice del limite analogo
                 // lato prezzo-giocatore): budgetTotaleAltri e creditiSpesiAltriTotali sono somme
-                // aggregate su tutti e 9 gli avversari. Uno scenario con 8 avversari "al verde" e 1 con
+                // aggregate su tutti gli avversari. Uno scenario con molti avversari "al verde" e 1 con
                 // budget pieno produce lo STESSO valore aggregato di uno scenario con tutti e 9 a budget
                 // moderato — ma la pressione competitiva reale su un giocatore conteso è radicalmente
                 // diversa (nel primo caso basta superare la disponibilità di un solo rivale ricco). Il
@@ -1405,6 +1440,12 @@
                 const giocatoriMieiPerRuolo = (ruolo) =>
                     giocatori.value
                         .filter(g => g.ruolo === ruolo && g.stato === 'M')
+                        .sort((a, b) => a.nome.localeCompare(b.nome));
+
+                // Giocatori assegnati a uno specifico avversario, ordinati per nome.
+                const giocatoriAvversarioPerRuolo = (avversarioId, ruolo) =>
+                    giocatori.value
+                        .filter(g => g.ruolo === ruolo && g.stato === 'A' && g.avversarioId === avversarioId)
                         .sort((a, b) => a.nome.localeCompare(b.nome));
 
                 // Attiva/disattiva il flag "Preferito" (stella) su un giocatore: puramente
@@ -1965,7 +2006,7 @@
                     riservaOccResidua, riservaOccConsumata,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
-                    avversari, nomeAvversario, statAvversario, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati,
+                    avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
