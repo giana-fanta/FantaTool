@@ -755,7 +755,18 @@
                     n0RiallocazioneCat: 4,                         // F: osservazioni reali minime (per lato del confronto) per confidenza piena
                     sogliaScartoRiallocazione: 0.15,                // F: deadzone — scarto relativo minimo prima che il fattore reagisca
                     limiteScartoRiallocazione: 1.0,                 // F: clamp dello scarto relativo (evita overreaction su outlier)
-                    correlazioneMercato: 0.45                       // H: sconto peso per ogni ulteriore fattore ①③④ concorde (vedi combinaFattoriCorrelati)
+                    correlazioneMercato: 0.45,                      // H: sconto peso per ogni ulteriore fattore ①③④ concorde (vedi combinaFattoriCorrelati)
+                    // I) Smorzamento pro-ciclico [nuovo]: senza questo fattore, tutte le correzioni
+                    // espansive (①②③④, moltoConteso) spingono il tetto verso l'alto quando il mercato
+                    // si scalda, indipendentemente da quanto margine reale resta all'utente — un
+                    // meccanismo potenzialmente auto-rinforzante (più il mercato paga, più il tetto
+                    // sale, più si è disposti a pagare) proprio nella fase in cui la disciplina di
+                    // spesa dovrebbe contare di più. Il vincolo di solvibilità (tettoSolvibilita) resta
+                    // un muro fisico invariato applicato per ultimo: questo fattore agisce PRIMA, per
+                    // rendere il motore progressivamente più prudente mentre ci si avvicina al muro,
+                    // invece di lasciarlo bloccare di scatto solo all'ultimo istante.
+                    sogliaMargineComodo: 0.4,                       // I: soglia di margine (slack/budgetResiduo) sopra la quale nessuno smorzamento si applica
+                    smorzamentoMargineMin: 0.6                      // I: frazione minima dell'ECCESSO espansivo trattenuta quando il margine tende a zero (mai sotto il 60%)
                 };
 
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
@@ -2036,13 +2047,43 @@
                     // ①③④ nello stesso senso, quindi continuano a moltiplicarsi come prima.
                     const fattoreMercatoCombinato = combinaFattoriCorrelati([inflazioneIbrida, momentum, rank]);
 
-                    let valore = Math.round(g.max * fattoreMercatoCombinato * moltiplicatoreCategoria * fattoreRuolo * sazieta * sazietaGenerale * riallocazioneCat);
+                    // [I: Smorzamento pro-ciclico] Margine di sicurezza reale: quanta parte del budget
+                    // residuo dell'utente resta libera OLTRE alla riserva fisica minima (1 credito per
+                    // ogni altro slot ancora da riempire, la stessa riserva usata da tettoSolvibilita
+                    // più sotto). 1 = piena libertà (nessuno smorzamento), 0 = tutto il residuo è già
+                    // impegnato per completare la rosa (massima prudenza). Usa gli stessi computed
+                    // (budgetResiduo, slotLiberiTotali) del vincolo di solvibilità finale, quindi resta
+                    // coerente con esso per costruzione — non introduce una seconda nozione di "margine".
+                    const residuoPerMargine = budgetResiduo.value;
+                    const margineSicurezza = residuoPerMargine <= 0
+                        ? 0
+                        : clampValore((residuoPerMargine - Math.max(0, slotLiberiTotali.value - 1)) / residuoPerMargine, 0, 1);
+                    const smorzamentoGlobale = margineSicurezza >= FINETUNING.sogliaMargineComodo
+                        ? 1
+                        : FINETUNING.smorzamentoMargineMin + (1 - FINETUNING.smorzamentoMargineMin) * (margineSicurezza / FINETUNING.sogliaMargineComodo);
 
                     // [Nuovo] Segnale manuale di domanda molto contesa: non prova a stimare il rivale,
-                    // ma incorpora l'informazione qualitativa che l'utente possiede e i dati aggregati non possono vedere.
-                    if (g.moltoConteso) {
-                        valore = Math.round(valore * FINETUNING.moltiplicatoreGiocatoreConteso);
-                    }
+                    // ma incorpora l'informazione qualitativa che l'utente possiede e i dati aggregati
+                    // non possono vedere. Viene unito PRIMA dello smorzamento (non moltiplicato a parte
+                    // dopo) perché è anch'esso, a tutti gli effetti, un fattore espansivo: un giocatore
+                    // "conteso" con margine ormai stretto deve restare soggetto alla stessa prudenza
+                    // crescente di ①②③④, non bypassarla.
+                    const moltiplicatoreContesoGrezzo = g.moltoConteso ? FINETUNING.moltiplicatoreGiocatoreConteso : 1;
+
+                    // Il moltiplicatore "espansivo" complessivo (mercato + categoria/pressione + conteso)
+                    // viene smorzato solo nella parte ECCEDENTE 1: se il prodotto grezzo è già ≤1 (il
+                    // mercato sta di fatto raffreddando quella CAT/ruolo più di quanto la contenda le
+                    // scarsità), non c'è nulla di "espansivo" da smorzare e il valore resta invariato —
+                    // lo smorzamento non deve mai trasformarsi in una compressione aggiuntiva non
+                    // richiesta. I fattori CONTRATTIVI (fattoreRuolo, sazieta, sazietaGenerale,
+                    // riallocazioneCat) restano fuori da questo calcolo e si applicano dopo, invariati:
+                    // vanno già nella direzione "giusta" (prudenza) e non necessitano di smorzamento.
+                    const fattoreEspansivoGrezzo = fattoreMercatoCombinato * moltiplicatoreCategoria * moltiplicatoreContesoGrezzo;
+                    const fattoreEspansivo = fattoreEspansivoGrezzo > 1
+                        ? 1 + (fattoreEspansivoGrezzo - 1) * smorzamentoGlobale
+                        : fattoreEspansivoGrezzo;
+
+                    let valore = Math.round(g.max * fattoreEspansivo * fattoreRuolo * sazieta * sazietaGenerale * riallocazioneCat);
 
                     // Se conosciamo almeno un avversario, il valore non viene lasciato crescere
                     // oltre il massimo bid sostenibile del rivale più forte (+1 per superarlo).
