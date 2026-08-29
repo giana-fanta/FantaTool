@@ -441,10 +441,19 @@
                 </div>
                 <div class="campo">
                     <label>Crediti spesi</label>
-                    <input type="number" min="0" v-model.number="extraRapido.crediti" placeholder="0">
+                    <div class="qty-stepper">
+                        <button type="button" class="qty-btn" @click="stepExtraRapido(-1)">−</button>
+                        <input type="number" min="0" v-model.number="extraRapido.crediti" placeholder="0">
+                        <button type="button" class="qty-btn" @click="stepExtraRapido(1)">+</button>
+                    </div>
                 </div>
                 <div class="campo" style="justify-content:end;">
                     <button type="button" class="btn btn-success" :disabled="!extraRapido.target" @click="aggiungiExtraRapido(currentTab)">+ Aggiungi Extra</button>
+                </div>
+                <div class="campo" style="justify-content:end; margin-left:auto;" v-if="rivaleRuoloCorrente.mostra">
+                    <span class="badge badge-conf" :title="rivaleRuoloCorrente.title">
+                        🎯 Rivale più pericoloso ({{ currentTab }}): ≤{{ rivaleRuoloCorrente.bid }}
+                    </span>
                 </div>
             </div>
             <div class="filtri-bar">
@@ -500,10 +509,6 @@
                         <span v-if="datiRiga(g).mostraIntervallo" class="badge-interval"
                               :title="datiRiga(g).tooltipIntervallo">
                             ≈ {{ datiRiga(g).intervallo.min }}–{{ datiRiga(g).intervallo.max }}
-                        </span>
-                        <span v-if="datiRiga(g).mostraRivale" class="badge badge-conf"
-                              :title="datiRiga(g).titleRivale">
-                            🎯 ≤{{ datiRiga(g).rivale.bid }}
                         </span>
                         <span v-if="datiRiga(g).mostraAvvisoDati" class="badge badge-dati-avviso"
                               :title="datiRiga(g).titleAvvisoDati">
@@ -1391,6 +1396,30 @@
                 // il modulo si auto-resetta per permettere subito un nuovo inserimento.
                 const extraRapido = ref({ target: '', crediti: null });
 
+                // Incrementa/decrementa i crediti del modulo "Extra Rapido" (bozza non ancora
+                // salvata), senza scendere sotto zero. Analogo a stepExtra ma sul campo temporaneo
+                // extraRapido.crediti, non su un valore già persistito.
+                const stepExtraRapido = (delta) => {
+                    extraRapido.value.crediti = Math.max(0, (Number(extraRapido.value.crediti) || 0) + delta);
+                };
+
+                // [Badge "rivale più pericoloso"] Prima veniva ripetuto identico su ogni riga
+                // giocatore del ruolo (dipende solo dal ruolo, non dal singolo giocatore). Spostato
+                // qui come informazione unica per la scheda ruolo corrente (P/D/C/A), mostrata
+                // accanto alla barra "Extra Rapido", con lo stesso identico calcolo/testo di prima.
+                const rivaleRuoloCorrente = computed(() => {
+                    if (!['P', 'D', 'C', 'A'].includes(currentTab.value)) return { mostra: false };
+                    if (statoAsta.value === 'NON INIZIATA') return { mostra: false };
+                    const ruolo = currentTab.value;
+                    const rivale = massimaConcorrenzaEconomica(ruolo);
+                    if (!(rivale.bid > 0)) return { mostra: false };
+                    return {
+                        mostra: true,
+                        bid: rivale.bid,
+                        title: 'Rivale più pericoloso per il ruolo ' + ruolo + ': ' + (nomeAvversario(rivale.id) || 'un avversario') + ' può arrivare fino a circa ' + rivale.bid + ' crediti (budget residuo stimato al netto della riserva fisica per gli altri suoi slot). Informazione descrittiva sulla competitività del duello: NON è un tetto sul MAX_D, che resta calcolato in base alla convenienza per te.'
+                    };
+                });
+
                 const aggiungiExtraRapido = (ruolo) => {
                     const target = extraRapido.value.target;
                     if (!target) return;
@@ -1408,6 +1437,8 @@
                         if (!item) return;
                         item.slot = (item.slot || 0) + 1;
                         item.crediti = round2((item.crediti || 0) + crediti);
+                        if (!item.dettagli) item.dettagli = [];
+                        item.dettagli.push({ nome: '', costo: crediti });
                     }
 
                     salvaStato();
@@ -2760,7 +2791,6 @@
                         const intervallo = mostraExtra ? intervalloMaxD(g) : null;
                         const mostraIntervallo = mostraExtra && intervallo.dispersione > 0;
                         const info = mostraExtra ? infoRuolo(g.ruolo) : null;
-                        const mostraRivale = mostraExtra && info.rivale.bid > 0;
                         map.set(g.nome, {
                             maxD: calcolaMaxD(g),
                             mostraExtra,
@@ -2768,11 +2798,6 @@
                             intervallo,
                             mostraIntervallo,
                             tooltipIntervallo: mostraIntervallo ? tooltipIntervalloMaxD(g) : '',
-                            mostraRivale,
-                            rivale: mostraRivale ? info.rivale : null,
-                            titleRivale: mostraRivale
-                                ? ('Rivale più pericoloso per il ruolo ' + g.ruolo + ': ' + (nomeAvversario(info.rivale.id) || 'un avversario') + ' può arrivare fino a circa ' + info.rivale.bid + ' crediti (budget residuo stimato al netto della riserva fisica per gli altri suoi slot). Informazione descrittiva sulla competitività del duello: NON è un tetto sul MAX_D, che resta calcolato in base alla convenienza per te.')
-                                : '',
                             mostraAvvisoDati: mostraExtra && info.datiIncompleti,
                             titleAvvisoDati: (mostraExtra && info.datiIncompleti)
                                 ? ('Dati avversari incompleti per il ruolo ' + g.ruolo + ': ' + info.acquistiMancanti + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), quegli acquisti non contribuiscono alla capacita di spesa stimata per singolo avversario, e la pressione avversari (fattore \u2461) e la stima del rivale piu pericoloso restano meno precise.')
@@ -2957,7 +2982,7 @@
                     avversari, nomeAvversario, statAvversario, statAvversarioRuolo, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, acquistiAvversariNonAssegnatiPerRuolo, datiAvversariIncompletiPerRuolo, massimaConcorrenzaEconomica, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, onSlotAvversarioExtraChange, extraAvversarioDettagli, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
-                    extraRapido, aggiungiExtraRapido,
+                    extraRapido, aggiungiExtraRapido, stepExtraRapido, rivaleRuoloCorrente,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, datiRiga, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, esportaSquadre, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
