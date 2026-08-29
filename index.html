@@ -333,7 +333,7 @@
                 </div>
             </div>
 
-            <p class="note">ℹ️ Gli acquisti degli avversari sono tracciati per singolo partecipante. MAX_D considera la capacità economica del rivale più competitivo che abbia ancora slot disponibili nel ruolo: budget residuo meno la riserva minima necessaria per completare gli altri slot.</p>
+            <p class="note">ℹ️ Gli acquisti degli avversari sono tracciati per singolo partecipante. MAX_D usa la domanda strutturale del ruolo e la capacità economica stimata degli avversari, ma non usa il bid massimo del singolo rivale come valore del giocatore: la soglia resta un limite di convenienza.</p>
 
             <h2>Situazione Reparti</h2>
             <div class="table-container">
@@ -824,7 +824,7 @@
                 // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
                 const PESO_CATEGORIA = { Occ: 0.5, Pun: 0.35, Tit: 0.25, Scm: 0.15 }; // default (Sca e altro) = 0.05
 
-                // --- Parametri di fine-tuning del motore MAX_D (proposte ①②③④⑤⑥ + raffinamenti A/B/C/D/E/F) ---
+                // --- Parametri di fine-tuning del motore MAX_D (correzioni dinamiche + raffinamenti) ---
                 // Sono correzioni moltiplicative "piccole" applicate SOPRA la formula originale,
                 // per non alterarne l'ordine di grandezza già validato: agiscono solo quando ci
                 // sono abbastanza dati (altrimenti restano neutre, cioè moltiplicano per 1).
@@ -840,9 +840,9 @@
                 //     finestra fissa "ultime N" è stata sostituita da un decadimento esponenziale
                 //     (nessun taglio netto dentro/fuori finestra) e la confidenza satura più
                 //     lentamente, per smorzare la sensibilità a un singolo acquisto anomalo.
-                //  D) la pressione avversari (②) è ora corretta per la capacità di spesa residua
-                //     stimata degli avversari, e il rank (④) è corretto per la numerosità originaria
-                //     della CAT (evita il bonus pieno "automatico" quando resta un solo giocatore).
+                //  D) la pressione avversari (②) è ora corretta per la capacità di spesa residua stimata
+                //     degli avversari; la vecchia correzione di rank (④) è stata sostituita da una misura
+                //     di sostituibilità basata sulle alternative realmente ancora disponibili.
                 //  E) nuovo fattore ⑤ "Sazietà": V/W/X (fattoreRuolo) misura solo la disponibilità di
                 //     BUDGET residuo, non quanti giocatori di quella CAT sono già stati presi — perciò
                 //     un acquisto "economico" non riduceva il MAX_D degli altri Occ/Pun/Tit dello
@@ -850,62 +850,73 @@
                 //     (indipendente dal prezzo pagato) rispetto al target H/I già usato altrove nel
                 //     motore, per riflettere la minore necessità di ulteriori giocatori di quella CAT
                 //     una volta raggiunta la quota.
-                //  F) nuovo fattore ⑥ "Riallocazione CAT": tutti i fattori ①-⑤ rispondono a "questa
+                //  F) nuovo fattore ⑦ "Riallocazione CAT": i correttivi dinamici già presenti rispondono a
+                //     variazioni di mercato/domanda; qui si gestisce il caso speculare — "questa
                 //     CAT sta diventando più cara" con un'unica reazione (alzare il cap). Manca il
                 //     caso speculare — "questa CAT sta costando troppo rispetto al beneficio marginale
                 //     ancora ottenibile, meglio dirottare budget sull'altro bucket di quota ancora
                 //     scoperto nello stesso ruolo" — che qui comprime il cap invece di espanderlo.
                 //     Il "beneficio" non usa il MAX (che è già un segnale di prezzo/disponibilità a
                 //     pagare, non di status): usa PESO_INFLAZIONE, il peso di ambizione/appeal della
-                //     CAT già impiegato altrove (①③) e indipendente dal prezzo di mercato osservato.
+                //     CAT già impiegato altrove e indipendente dal prezzo di mercato osservato.
                 const FINETUNING = {
-                // ① Inflazione osservata
-                alphaInflazioneOsservata: 0.15,
-                n0Inflazione: 5,
-                limiteInflazioneOsservata: 0.35,
-            
-                // ② Pressione avversari
-                betaPressioneAvversari: 0.06,
-                n0PressioneAvversari: 4,
-                capacitaAvversariMin: 0.65,
-                capacitaAvversariMax: 1.30,
-            
-                // ③ Momentum
-                gammaMomentum: 0.18,
-                n0Momentum: 6,
-                decadimentoMomentum: 0.88,
-            
-                // ④ Rank nella CAT
-                deltaRank: 0.08,
-                sogliaCampioneRank: 7,
-            
-                // ⑤ Sazietà
-                epsilonSazieta: 0.12,
-                sazietaMin: 0.60,
-                epsilonSazietaGenerale: 0.15,
-                sazietaGeneraleMin: 0.85,
-            
-                // Giocatore molto conteso
-                moltiplicatoreGiocatoreConteso: 1.08,
-            
-                // Intervallo di incertezza
-                coefficienteIntervalloDispersione: 0.75,
-                ampiezzaIntervalloMin: 0.08,
-                ampiezzaIntervalloMax: 0.35,
-            
-                // ⑥ Riallocazione CAT
-                epsilonRiallocazioneCat: 0.25,
-                riallocazioneCatMin: 0.70,
-                n0RiallocazioneCat: 5,
-                sogliaScartoRiallocazione: 0.20,
-                limiteScartoRiallocazione: 0.75,
-            
-                // Correlazione tra segnali di mercato
-                correlazioneMercato: 0.35,
-            
-                // Smorzamento pro-ciclico
-                sogliaMargineComodo: 0.50,
-                smorzamentoMargineMin: 0.45
+                    // ① Inflazione osservata: interpreta i prezzi osservati come informazione sul costo-opportunità
+                    // del mercato, non come previsione né come prezzo consigliato.
+                    alphaInflazioneOsservata: 0.15,
+                    n0Inflazione: 5,
+                    limiteInflazioneOsservata: 0.35,
+
+                    // ② Pressione strutturale degli avversari: usa solo gli slot ancora necessari e la loro
+                    // capacità economica stimata. Il bid massimo del singolo rivale non è un tetto di MAX_D.
+                    betaPressioneAvversari: 0.06,
+                    n0PressioneAvversari: 4,
+                    capacitaAvversariMin: 0.65,
+                    capacitaAvversariMax: 1.30,
+
+                    // ③ Momentum: reagisce ai cambiamenti recenti, ma senza trasformare pochi acquisti in un
+                    // nuovo valore assoluto del giocatore.
+                    gammaMomentum: 0.18,
+                    n0Momentum: 6,
+                    decadimentoMomentum: 0.88,
+
+                    // ④ Sostituibilità: MAX_base resta la soglia neutrale. Il fattore misura quanto costa
+                    // rinunciare al giocatore quando le alternative rimaste sono poche e/o sensibilmente
+                    // inferiori in termini di MAX_base.
+                    epsilonSostituibilita: 0.12,
+                    pesoGapSostituibilita: 0.70,
+                    pesoScarsitaSostituibilita: 0.30,
+                    n0AlternativeSostituibilita: 4,
+                    confidenzaSenzaAlternativa: 0.50,
+                    premioSenzaAlternativa: 0.04,
+
+                    // ⑤ Sazietà CAT / ⑥ sazietà fisica del ruolo.
+                    epsilonSazieta: 0.12,
+                    sazietaMin: 0.60,
+                    epsilonSazietaGenerale: 0.15,
+                    sazietaGeneraleMin: 0.85,
+
+                    // Segnale manuale qualitativo: maggiorazione volutamente piccola.
+                    moltiplicatoreGiocatoreConteso: 1.08,
+
+                    // Intervallo di incertezza osservata.
+                    coefficienteIntervalloDispersione: 0.75,
+                    ampiezzaIntervalloMin: 0.08,
+                    ampiezzaIntervalloMax: 0.35,
+
+                    // ⑦ Riallocazione CAT.
+                    epsilonRiallocazioneCat: 0.25,
+                    riallocazioneCatMin: 0.70,
+                    n0RiallocazioneCat: 5,
+                    sogliaScartoRiallocazione: 0.20,
+                    limiteScartoRiallocazione: 0.75,
+
+                    // Correlazione tra segnali di mercato: ora solo ① e ③ sono combinati qui.
+                    correlazioneMercato: 0.35,
+
+                    // Smorzamento pro-ciclico: l'asta non può far crescere indefinitamente il cap quando
+                    // il margine economico dell'utente si sta esaurendo.
+                    sogliaMargineComodo: 0.50,
+                    smorzamentoMargineMin: 0.45
                 };
 
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
@@ -1885,37 +1896,74 @@
                     return clampValore(1 + confidenza * gammaEff * scarto, 0.85, 1.2);
                 };
 
-                // Percentile (0-1) del MAX di un giocatore rispetto agli altri liberi della stessa
-                // CAT/ruolo: 1 = il migliore rimasto sul mercato in quella CAT, valori bassi = fondo
-                // classifica. Usato dalla proposta ④ per premiare i "migliori superstiti" quando
-                // la CAT è ormai scarsa.
-                const percentileMaxInCat = (g) => {
-                    const liberi = giocatori.value.filter(x => x.ruolo === g.ruolo && x.cat === g.cat && x.stato === 'L');
-                    if (liberi.length <= 1) return 1;
-                    const countMinoriUguali = liberi.filter(x => x.max <= g.max).length;
-                    return countMinoriUguali / liberi.length;
+                // ④ Sostituibilità relativa: MAX_base è già la soglia decisionale neutrale del giocatore.
+                // Non stimiamo un prezzo: misuriamo il costo-opportunità di perderlo confrontando MAX_base
+                // con le alternative ancora disponibili nello stesso ruolo e nello stesso bucket strategico.
+                const SOSTITUZIONE_BUCKET = { Occ: 'OccPun', Pun: 'OccPun', Tit: 'Tit', Scm: 'ScmSca', Sca: 'ScmSca' };
+
+                const alternativeSostituibilita = (g) => {
+                    const bucket = SOSTITUZIONE_BUCKET[g.cat] || g.cat;
+                    return giocatori.value.filter(x =>
+                        x.nome !== g.nome &&
+                        x.ruolo === g.ruolo &&
+                        SOSTITUZIONE_BUCKET[x.cat] !== undefined &&
+                        SOSTITUZIONE_BUCKET[x.cat] === bucket &&
+                        x.stato === 'L'
+                    );
                 };
 
-                // ④ Fattore di posizione in CAT: il bonus è proporzionale sia a quanto il giocatore
-                // è in alto nella propria CAT (percentile) sia a quanto quella CAT è già scarsa
-                // (F_ruolo stesso: F alto = CAT quasi esaurita, F basso = CAT ancora abbondante).
-                // Se la CAT è ancora abbondante il fattore resta vicino a 1 anche per i migliori.
-                const fattoreRank = (g, fRuolo) => {
-                    const percentile = percentileMaxInCat(g);
-                    const confCampione = sogliaConfidenza(countCat(g.ruolo, g.cat), FINETUNING.sogliaCampioneRank);
-                    return 1 + FINETUNING.deltaRank * percentile * fRuolo * confCampione;
+                const analisiSostituibilita = (g) => {
+                    const alternative = alternativeSostituibilita(g);
+                    const n = alternative.length;
+
+                    if (!n) {
+                        // Nessuna alternativa osservabile: la scarsità è reale, ma la qualità dell'alternativa
+                        // ipotetica è sconosciuta. Per questo il premio resta volutamente piccolo.
+                        return {
+                            fattore: 1 + FINETUNING.premioSenzaAlternativa * FINETUNING.confidenzaSenzaAlternativa,
+                            confidenza: FINETUNING.confidenzaSenzaAlternativa,
+                            numeroAlternative: 0,
+                            gapQualita: 0,
+                            scarsita: 1
+                        };
+                    }
+
+                    const miglioreAlternativa = alternative.reduce((best, x) =>
+                        (!best || Number(x.max || 0) > Number(best.max || 0)) ? x : best, null);
+                    const maxBase = Math.max(Number(g.max) || 0, 1);
+                    const maxAlternativa = Math.max(Number(miglioreAlternativa?.max) || 0, 0);
+
+                    // Gap di soglia neutrale: se l'alternativa ha un MAX_base quasi identico, perderla costa poco;
+                    // se è molto inferiore, il giocatore corrente è più difficile da sostituire.
+                    const gapQualita = clampValore((maxBase - maxAlternativa) / maxBase, 0, 1);
+                    const scarsita = clampValore(
+                        1 - Math.min(n, FINETUNING.n0AlternativeSostituibilita) / FINETUNING.n0AlternativeSostituibilita,
+                        0, 1
+                    );
+                    // Con una sola alternativa non abbiamo ancora piena evidenza della struttura del mercato;
+                    // da due osservazioni in poi la confidenza è piena per non introdurre una soglia artificiale.
+                    const confidenza = clampValore(n / 2, 0, 1);
+                    const intensita = clampValore(
+                        FINETUNING.pesoGapSostituibilita * gapQualita +
+                        FINETUNING.pesoScarsitaSostituibilita * scarsita,
+                        0, 1
+                    );
+
+                    return {
+                        fattore: 1 + FINETUNING.epsilonSostituibilita * confidenza * intensita,
+                        confidenza,
+                        numeroAlternative: n,
+                        gapQualita,
+                        scarsita
+                    };
                 };
 
-                // H) Compressione correlazione mercato [nuovo, discusso]: ①(inflazione ibrida),
-                // ③(momentum) e ④(rank) non sono evidenze statisticamente indipendenti — misurano
-                // tutte, con angolazioni diverse (livello / tendenza recente / scarsità dei
-                // superstiti), lo STESSO fenomeno sottostante: "il mercato sta pagando più del
-                // previsto in questo ruolo/CAT". Moltiplicarle a piena forza (come nella versione
-                // precedente) fa sì che in un'asta realmente "calda" — dove tutte e tre si attivano
-                // insieme, con lo stesso segno — il loro effetto congiunto si componga in modo
-                // ridondante ben oltre l'intenzione dei singoli pesi (es. tre correzioni +15-20%
-                // "indipendenti" producono insieme ~+70-90% invece di restare nell'ordine di +45-60%),
-                // proprio nello scenario in cui il tetto dovrebbe restare più, non meno, disciplinato.
+                const fattoreSostituibilita = (g) => analisiSostituibilita(g).fattore;
+
+                // H) Compressione correlazione mercato: ①(inflazione ibrida) e ③(momentum) non sono
+                // evidenze statisticamente indipendenti — misurano entrambe, con angolazioni diverse,
+                // lo stesso cambiamento del costo-opportunità di mercato. La sostituibilità ④ resta
+                // separata perché riguarda il confronto con le alternative disponibili, non il mercato.
                 //
                 // Questa funzione lavora in spazio logaritmico (dove moltiplicare = sommare) e applica
                 // uno sconto geometrico (correlazioneMercato, "rho") ai contributi CONCORDI col segno
@@ -1933,7 +1981,7 @@
                 //    processato), risultato identico al prodotto semplice di prima.
                 //  - Se i fattori sono discordi → nessuno sconto, risultato identico al prodotto pieno.
                 //  - Se i fattori sono concordi (il caso a rischio) → risultato compreso tra "solo il
-                //    più forte dei tre" e "prodotto pieno", mai fuori da quell'intervallo, e monotono
+                //    più forte dei due" e "prodotto pieno", mai fuori da quell'intervallo, e monotono
                 //    in ciascun fattore in ingresso (più forte è un segnale, più il risultato si sposta
                 //    verso il prodotto pieno di quel segnale, mai lo supera).
                 const combinaFattoriCorrelati = (fattori) => {
@@ -1992,7 +2040,7 @@
                     return clampValore(1 - FINETUNING.epsilonSazietaGenerale * occupazioneRuolo, FINETUNING.sazietaGeneraleMin, 1);
                 };
 
-                // ⑥ Fattore di riallocazione CAT [nuovo]: mentre ⑤ (sazietà) reagisce DOPO che una
+                // ⑦ Fattore di riallocazione CAT [nuovo]: mentre ⑤ (sazietà) reagisce DOPO che una
                 // quota è già stata superata (conteggio, indipendente dal prezzo), questo fattore
                 // reagisce PRIMA — mentre la quota è ancora scoperta — quando il costo REALE osservato
                 // per completarla è ormai sproporzionato rispetto al beneficio marginale ancora
@@ -2111,19 +2159,8 @@
                     const min = Math.max(1, Math.round(centrale * (1 - ampiezza)));
                     let max = Math.max(min, Math.round(centrale * (1 + ampiezza)));
 
-                    // [Fix] Il limite superiore del range non deve mai eccedere i due tetti "duri"
-                    // già applicati a "centrale" stesso (cap sul rivale più forte conosciuto e
-                    // vincolo di solvibilità fisico, entrambi in calcolaMaxDNumerico): altrimenti
-                    // l'intervallo, pur etichettato come "non un prezzo consigliato" nel tooltip,
-                    // mostrerebbe accanto a MAX_D un numero che il motore stesso considera
-                    // fisicamente o economicamente insostenibile — in contraddizione con il ruolo di
-                    // MAX_D come soglia massima da non superare. "centrale" è già ≤ a entrambi i
-                    // tetti per costruzione, quindi questo taglio non può mai scendere sotto "min".
-                    // Stesse condizioni/formule usate in calcolaMaxDNumerico, per restare coerenti.
-                    const concorrenzaRange = massimaConcorrenzaEconomica(g.ruolo);
-                    if (acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) === 0 && concorrenzaRange.bid > 0) {
-                        max = Math.min(max, concorrenzaRange.bid + 1);
-                    }
+                    // Coerenza del range con MAX_D: il solo tetto duro condiviso qui è la solvibilità fisica.
+                    // La capacità del rivale più forte non è un tetto di valore e quindi non riduce questo range.
                     const tettoSolvibilitaRange = Math.max(0, budgetResiduo.value - (slotLiberiTotali.value - 1));
                     max = Math.max(min, Math.min(max, tettoSolvibilitaRange));
 
@@ -2138,7 +2175,7 @@
                 };
 
                 // Motore Ricalcolo MAX_D — parte dalla formula originale (replica esatta del foglio
-                // Excel P/D/C/A) e vi applica sopra 6 correzioni di fine-tuning (①②③④⑤⑥), ciascuna a
+                // Excel P/D/C/A) e vi applica sopra le correzioni dinamiche, ciascuna a
                 // sua volta raffinata (A/B/C/D/E, vedi commenti su FINETUNING e sulle singole funzioni)
                 // per affinare ulteriormente la stima senza cambiarne l'ordine di grandezza già validato.
                 // Restituisce sempre un numero (anche per uno "L" ipotetico), usato sia per la colonna
@@ -2162,7 +2199,7 @@
                     // [Raffinamento] Coefficiente di guadagno per ruolo che amplifica solo l'uso di F
                     // dentro moltiplicatoreCategoria, per compensare la diluizione strutturale di F
                     // nei ruoli con listone più grande (es. C). F stesso resta invariato per gli altri
-                    // usi (es. fattoreRank). Default 1 (nessun effetto) per i ruoli non configurati.
+                    // usi del fattore scarsità. Default 1 (nessun effetto) per i ruoli non configurati.
                     const cfg = ROLE_CONFIG[g.ruolo];
                     const gainScarsita = cfg && cfg.gainScarsita !== undefined ? cfg.gainScarsita : 1;
 
@@ -2181,18 +2218,10 @@
                     const capacitaEff = 1 + confPressione * (capacitaSpesaAltri.value - 1);
                     const pressioneAvversariAggregata = pressioneAvversariGrezza * capacitaEff;
 
-                    // Logica economica per-manager: il rivale che può ancora offrire di più
-                    // determina il vero tetto competitivo. A parità di modello, un solo rivale
-                    // ricco mantiene la pressione alta; rivali già saturi o senza budget non la gonfiano.
-                    const concorrenza = massimaConcorrenzaEconomica(g.ruolo);
-                    const tettoConcorrenza = concorrenza.bid > 0 ? concorrenza.bid + 1 : 0;
-                    const coperturaManager = acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) === 0 ? 1 : 0;
-                    const pressioneEconomica = tettoConcorrenza > 0
-                        ? clampValore(tettoConcorrenza / Math.max(g.max || 1, 1), 0, 2)
-                        : pressioneAvversariAggregata;
-                    const pressioneAvversari = coperturaManager
-                        ? Math.max(pressioneAvversariAggregata, pressioneEconomica)
-                        : pressioneAvversariAggregata;
+                    // La pressione degli avversari resta un segnale strutturale di domanda/scarsità.
+                    // NON usa il bid massimo del singolo rivale come cap: quel valore descrive la competitività
+                    // del duello, non il limite economico razionale del nostro agente.
+                    const pressioneAvversari = pressioneAvversariAggregata;
                     const pesoCategoriaNorm = pesoCategoria / 0.5;
                     const moltiplicatoreCategoria = (1 + m.F * pesoCategoria * gainScarsita) *
                         (1 + FINETUNING.betaPressioneAvversari * pesoCategoriaNorm * pressioneAvversari);
@@ -2246,11 +2275,9 @@
                         inflazioneIbrida = inflazioneGlobale.value * (1 + FINETUNING.alphaInflazioneOsservata * confInflazione * scartoPesato);
                     }
 
-                    // ③ Momentum recente sul ruolo (pesato per CAT + decadimento esponenziale,
-                    // raffinamenti A/C) e ④ posizione del giocatore nella propria CAT (corretta per
-                    // numerosità originaria, raffinamento D).
+                    // ③ Momentum recente sul ruolo e ④ costo-opportunità di sostituzione del giocatore.
                     const momentum = fattoreMomentum(g.ruolo, g.cat);
-                    const rank = fattoreRank(g, m.F);
+                    const sostituibilita = fattoreSostituibilita(g);
 
                     // ⑤ Sazietà [Raffinamento E]: riduce la priorità (indipendentemente dal prezzo
                     // pagato) quando la quota di Occ/Pun o Titolari nel ruolo è già stata raggiunta.
@@ -2264,14 +2291,15 @@
                     // budget residuo" invece di rincorrere il prezzo.
                     const riallocazioneCat = fattoreRiallocazioneCat(g, m);
 
-                    // H) ①(inflazioneIbrida), ③(momentum) e ④(rank) sono i tre fattori "di mercato"
+                    // H) ①(inflazioneIbrida) e ③(momentum) sono i due segnali di mercato correlati;
+                    // ④(sostituibilità) resta separato perché misura il costo-opportunità delle alternative.
                     // correlati (vedi commento su combinaFattoriCorrelati): vengono combinati con lo
                     // sconto geometrico invece che moltiplicati a piena forza. moltiplicatoreCategoria
                     // (che include ②, pressione avversari — un segnale strutturale su slot/quote, non
                     // di prezzo osservato), fattoreRuolo (V/W/X, disponibilità budget), sazieta,
                     // sazietaGenerale e riallocazioneCat restano fattori distinti e non correlati con
-                    // ①③④ nello stesso senso, quindi continuano a moltiplicarsi come prima.
-                    const fattoreMercatoCombinato = combinaFattoriCorrelati([inflazioneIbrida, momentum, rank]);
+                    // ①③ nello stesso senso, quindi continuano a moltiplicarsi come prima.
+                    const fattoreMercatoCombinato = combinaFattoriCorrelati([inflazioneIbrida, momentum]);
 
                     // [I: Smorzamento pro-ciclico] Margine di sicurezza reale: quanta parte del budget
                     // residuo dell'utente resta libera OLTRE alla riserva fisica minima (1 credito per
@@ -2293,10 +2321,10 @@
                     // non possono vedere. Viene unito PRIMA dello smorzamento (non moltiplicato a parte
                     // dopo) perché è anch'esso, a tutti gli effetti, un fattore espansivo: un giocatore
                     // "conteso" con margine ormai stretto deve restare soggetto alla stessa prudenza
-                    // crescente di ①②③④, non bypassarla.
+                    // crescente dei correttivi espansivi, non bypassarla.
                     const moltiplicatoreContesoGrezzo = g.moltoConteso ? FINETUNING.moltiplicatoreGiocatoreConteso : 1;
 
-                    // Il moltiplicatore "espansivo" complessivo (mercato + categoria/pressione + conteso)
+                    // Il moltiplicatore "espansivo" complessivo (mercato + sostituibilità + categoria/pressione + conteso)
                     // viene smorzato solo nella parte ECCEDENTE 1: se il prodotto grezzo è già ≤1 (il
                     // mercato sta di fatto raffreddando quella CAT/ruolo più di quanto la contenda le
                     // scarsità), non c'è nulla di "espansivo" da smorzare e il valore resta invariato —
@@ -2304,20 +2332,12 @@
                     // richiesta. I fattori CONTRATTIVI (fattoreRuolo, sazieta, sazietaGenerale,
                     // riallocazioneCat) restano fuori da questo calcolo e si applicano dopo, invariati:
                     // vanno già nella direzione "giusta" (prudenza) e non necessitano di smorzamento.
-                    const fattoreEspansivoGrezzo = fattoreMercatoCombinato * moltiplicatoreCategoria * moltiplicatoreContesoGrezzo;
+                    const fattoreEspansivoGrezzo = fattoreMercatoCombinato * sostituibilita * moltiplicatoreCategoria * moltiplicatoreContesoGrezzo;
                     const fattoreEspansivo = fattoreEspansivoGrezzo > 1
                         ? 1 + (fattoreEspansivoGrezzo - 1) * smorzamentoGlobale
                         : fattoreEspansivoGrezzo;
 
                     let valore = Math.round(g.max * fattoreEspansivo * fattoreRuolo * sazieta * sazietaGenerale * riallocazioneCat);
-
-                    // Se conosciamo almeno un avversario, il valore non viene lasciato crescere
-                    // oltre il massimo bid sostenibile del rivale più forte (+1 per superarlo).
-                    // Questo evita di trattare nove budget come un unico portafoglio indistinto.
-                    const concorrenzaFinale = massimaConcorrenzaEconomica(g.ruolo);
-                    if (acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) === 0 && concorrenzaFinale.bid > 0) {
-                        valore = Math.min(valore, concorrenzaFinale.bid + 1);
-                    }
 
                     valore = valore < 1 ? 1 : valore;
 
@@ -2326,7 +2346,7 @@
                     // degli altri slot ancora vuoti (su TUTTI i ruoli, non solo quello di g). Quindi,
                     // detti S = slotLiberiTotali (compreso lo slot che stiamo per riempire con g) e
                     // B = budgetResiduo, il tetto assoluto è B - (S - 1). Va applicato per ULTIMO,
-                    // dopo tutte le correzioni soft (V/W/X, inflazione, momentum, rank, sazietà...),
+                    // dopo tutte le correzioni soft (V/W/X, inflazione, momentum, sostituibilità, sazietà...),
                     // perché può tagliare anche sotto il pavimento minimo di 1 credito quando il
                     // margine è già compromesso: in tal caso il valore corretto è quel margine reale
                     // (anche 0), non 1, altrimenti il tool suggerirebbe comunque una spesa non
@@ -2340,17 +2360,17 @@
                 const calcolaMaxD = (g) => g.stato !== 'L' ? '-' : calcolaMaxDNumerico(g);
 
                 // [Trasparenza / punto 5] Confidenza aggregata delle correzioni dinamiche di MAX_D.
-                // I parametri n0Inflazione/n0PressioneAvversari/n0Momentum/sogliaCampioneRank fanno sì
+                // I parametri n0Inflazione/n0PressioneAvversari/n0Momentum e quelli della sostituibilità fanno sì
                 // che, con costi "Altri" facoltativi, per gran parte dell'asta le correzioni restino a
                 // bassa confidenza — ma calcolaMaxDNumerico restituisce comunque un numero secco, senza
                 // indicare quanto derivi da dati osservati e quanto sia ancora la formula statica di
                 // base (MAX_base raffinato dai soli fattori strutturali V/W/X, sazietà, ecc., che non
                 // dipendono da osservazioni "Altri"). Questa funzione NON introduce una nuova formula di
-                // prezzo: riusa esattamente le stesse 5 rampe sogliaConfidenza già calcolate dal motore
+                // prezzo: riusa le stesse rampe sogliaConfidenza già calcolate dal motore
                 // per il giocatore in questione (①inflazione ibrida, ②pressione avversari, ③momentum,
-                // ④rank in CAT, ⑥riallocazione CAT) e ne fa la media semplice, in percentuale 0-100%,
-                // solo per l'interfaccia. 0% = nessuna delle 5 correzioni è attiva (equivale quasi a
-                // MAX_base); 100% = tutte e cinque sono a piena confidenza (campione sufficiente su
+                // ④sostituibilità, ⑦riallocazione CAT) e ne fa la media semplice, in percentuale 0-100%,
+                // solo per l'interfaccia. 0% = nessuna delle correzioni dinamiche è attiva (equivale quasi a
+                // MAX_base); 100% = tutte le correzioni dinamiche applicabili sono a piena confidenza (campione sufficiente su
                 // tutti i fronti). ⑤ (sazietà) resta fuori perché non dipende da dati "Altri" osservati
                 // ma solo dal conteggio dei propri acquisti, sempre certo per definizione.
                 const calcolaConfidenzaMaxD = (g) => {
@@ -2379,15 +2399,15 @@
                     const osservazioniEffettiveMomentum = pesoTotaleMomentumConf / (pesoCatMomentum(g.cat) || 1);
                     const confMomentum = sogliaConfidenza(osservazioniEffettiveMomentum, FINETUNING.n0Momentum);
 
-                    // ④ stessa numerosità originaria della CAT usata dal fattore di rank
-                    const confRank = sogliaConfidenza(countCat(g.ruolo, g.cat), FINETUNING.sogliaCampioneRank);
+                    // ④ stessa analisi del costo-opportunità di sostituzione usata dal motore.
+                    const confSostituibilita = analisiSostituibilita(g).confidenza;
 
-                    // ⑥ stessa analisi (bucket/costi/confidenza) usata dal fattore di riallocazione CAT;
+                    // ⑦ stessa analisi (bucket/costi/confidenza) usata dal fattore di riallocazione CAT;
                     // 0 quando il fattore non è applicabile (Scm/Sca, quota già soddisfatta, bucket
                     // alternativo saturo o dati reali insufficienti) — coerente con "0% = nessuna
                     // correzione attiva" per gli altri fattori in questa stessa media.
                     const analisiRialloc = analisiRiallocazioneCat(g, m);
-                    const componenti = [confInflazione, confPressione, confMomentum, confRank];
+                    const componenti = [confInflazione, confPressione, confMomentum, confSostituibilita];
                     if (analisiRialloc) componenti.push(analisiRialloc.confidenza); // solo se applicabile
                     const media = componenti.reduce((s, v) => s + v, 0) / componenti.length;
                     return Math.round(media * 100);
