@@ -412,8 +412,8 @@
                               :title="tooltipIntervalloMaxD(g)">
                             ≈ {{ intervalloMaxD(g).min }}–{{ intervalloMaxD(g).max }}
                         </span>
-                        <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivo" class="badge badge-cap-avviso"
-                              :title="'Cap individuale sul rivale piu forte non attivo: ' + acquistiAvversariNonAssegnati + ' acquisti \'Altri\' hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Altri Partecipanti), il motore usa la stima aggregata sugli avversari, meno precisa.'">
+                        <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivoPerRuolo(g.ruolo)" class="badge badge-cap-avviso"
+                              :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Altri Partecipanti), il motore usa la stima aggregata sugli avversari, meno precisa.'">
                             ⚠ cap agg.
                         </span>
                     </td>
@@ -572,8 +572,8 @@
                                   title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
                                 {{ calcolaConfidenzaMaxD(g) }}%
                             </span>
-                            <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivo" class="badge badge-cap-avviso"
-                                  :title="'Cap individuale sul rivale piu forte non attivo: ' + acquistiAvversariNonAssegnati + ' acquisti \'Altri\' hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Altri Partecipanti), il motore usa la stima aggregata sugli avversari, meno precisa.'">
+                            <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivoPerRuolo(g.ruolo)" class="badge badge-cap-avviso"
+                                  :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Altri Partecipanti), il motore usa la stima aggregata sugli avversari, meno precisa.'">
                                 ⚠ cap agg.
                             </span>
                         </td>
@@ -1055,17 +1055,32 @@
                     giocatori.value.filter(g => g.stato === 'A' && !g.avversarioId && g.costo_reale > 0).length
                 );
 
+                // [Fix] Versione scoped-per-ruolo della stessa condizione. Il gate "cap individuale sul
+                // rivale più forte" (coperturaManager in calcolaMaxDNumerico, e il taglio finale
+                // "min(valore, concorrenza.bid + 1)" poco più sotto) deve dipendere solo dai dati
+                // mancanti nel ruolo del giocatore che si sta valutando: un acquisto "Altri" senza
+                // avversario assegnato in un ruolo non deve disattivare il cap su un ruolo diverso, dove
+                // il tracciamento per-avversario può essere completo. Se TUTTI gli acquisti non
+                // assegnati sono registrati in tempo reale (nessun ritardo nell'assegnazione), questa
+                // versione scoped restituisce sempre lo stesso valore (0) della versione globale per
+                // ogni ruolo, quindi il comportamento a dati completi resta identico: cambia solo la
+                // sensibilità del gate quando ESISTONO dati mancanti, restringendola al ruolo giusto.
+                const acquistiAvversariNonAssegnatiPerRuolo = (ruolo) =>
+                    giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'A' && !g.avversarioId && g.costo_reale > 0).length;
+
                 // [Badge "cap individuale non attivo"] Riusa la STESSA condizione già impiegata dal
                 // motore in due punti (coperturaManager in calcolaMaxDNumerico, e il cap
                 // "min(valore, concorrenza.bid + 1)" poco più sotto): finché anche un solo acquisto
-                // "Altri" ha un costo registrato ma nessun avversario assegnato, il motore non applica
-                // il tetto basato sul rivale più forte conosciuto e ricade sulla stima aggregata (meno
-                // precisa, vedi nota "tirannia della media" su capacitaSpesaAltri). Prima di questo
-                // badge quell'informazione era visibile solo nel pannello "Impostazioni Altri
-                // Partecipanti" (riga 226), non nel momento — davanti al numero MAX_D di un giocatore
-                // specifico — in cui serve davvero. Nessuna nuova logica di calcolo: solo un'esposizione
-                // in UI di una condizione che il motore già usa internamente.
+                // "Altri" nello STESSO ruolo del giocatore valutato ha un costo registrato ma nessun
+                // avversario assegnato, il motore non applica il tetto basato sul rivale più forte
+                // conosciuto e ricade sulla stima aggregata (meno precisa, vedi nota "tirannia della
+                // media" su capacitaSpesaAltri). Prima di questo badge quell'informazione era visibile
+                // solo nel pannello "Impostazioni Altri Partecipanti" (riga 226), non nel momento —
+                // davanti al numero MAX_D di un giocatore specifico — in cui serve davvero. Nessuna
+                // nuova logica di calcolo: solo un'esposizione in UI di una condizione che il motore già
+                // usa internamente, scoped per ruolo come il motore stesso.
                 const capIndividualeNonAttivo = computed(() => acquistiAvversariNonAssegnati.value > 0);
+                const capIndividualeNonAttivoPerRuolo = (ruolo) => acquistiAvversariNonAssegnatiPerRuolo(ruolo) > 0;
 
                 const onNumeroAvversariChange = () => {
                     const vecchi = Array.isArray(config.value.avversari) ? config.value.avversari : [];
@@ -1960,7 +1975,7 @@
                     // ricco mantiene la pressione alta; rivali già saturi o senza budget non la gonfiano.
                     const concorrenza = massimaConcorrenzaEconomica(g.ruolo);
                     const tettoConcorrenza = concorrenza.bid > 0 ? concorrenza.bid + 1 : 0;
-                    const coperturaManager = acquistiAvversariNonAssegnati.value === 0 ? 1 : 0;
+                    const coperturaManager = acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) === 0 ? 1 : 0;
                     const pressioneEconomica = tettoConcorrenza > 0
                         ? clampValore(tettoConcorrenza / Math.max(g.max || 1, 1), 0, 2)
                         : pressioneAvversariAggregata;
@@ -2089,7 +2104,7 @@
                     // oltre il massimo bid sostenibile del rivale più forte (+1 per superarlo).
                     // Questo evita di trattare nove budget come un unico portafoglio indistinto.
                     const concorrenzaFinale = massimaConcorrenzaEconomica(g.ruolo);
-                    if (acquistiAvversariNonAssegnati.value === 0 && concorrenzaFinale.bid > 0) {
+                    if (acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) === 0 && concorrenzaFinale.bid > 0) {
                         valore = Math.min(valore, concorrenzaFinale.bid + 1);
                     }
 
@@ -2312,7 +2327,7 @@
                     riservaOccResidua, riservaOccConsumata,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
-                    avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo,
+                    avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
