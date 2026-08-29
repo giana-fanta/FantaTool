@@ -432,17 +432,17 @@
                     <td v-if="!datiSensibiliNascosti">{{ g.cat }}</td>
                     <td v-if="!datiSensibiliNascosti">{{ g.max }}</td>
                     <td v-if="!datiSensibiliNascosti">
-                        <strong>{{ calcolaMaxD(g) }}</strong>
-                        <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA'" class="badge badge-conf"
+                        <strong>{{ datiRiga(g).maxD }}</strong>
+                        <span v-if="datiRiga(g).mostraExtra" class="badge badge-conf"
                               title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
-                            {{ calcolaConfidenzaMaxD(g) }}%
+                            {{ datiRiga(g).confidenza }}%
                         </span>
-                        <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && intervalloMaxD(g).dispersione > 0" class="badge-interval"
-                              :title="tooltipIntervalloMaxD(g)">
-                            ≈ {{ intervalloMaxD(g).min }}–{{ intervalloMaxD(g).max }}
+                        <span v-if="datiRiga(g).mostraIntervallo" class="badge-interval"
+                              :title="datiRiga(g).tooltipIntervallo">
+                            ≈ {{ datiRiga(g).intervallo.min }}–{{ datiRiga(g).intervallo.max }}
                         </span>
-                        <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivoPerRuolo(g.ruolo)" class="badge badge-cap-avviso"
-                              :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), il motore usa la stima aggregata sugli avversari, meno precisa.'">
+                        <span v-if="datiRiga(g).mostraCapAvviso" class="badge badge-cap-avviso"
+                              :title="datiRiga(g).titleCapAvviso">
                             ⚠ cap agg.
                         </span>
                     </td>
@@ -2325,6 +2325,51 @@
                     return list;
                 });
 
+                // [Ottimizzazione performance] La tabella richiamava direttamente nel template, per
+                // ogni riga e ad ogni singolo render, calcolaMaxD/calcolaConfidenzaMaxD/intervalloMaxD/
+                // tooltipIntervalloMaxD/capIndividualeNonAttivoPerRuolo — funzioni pesanti (loop su
+                // giocatori/storicoAcquisti) MAI cachate, alcune richiamate più volte per la stessa
+                // riga (es. intervalloMaxD invocata sia nel v-if sia nel min/max sia dentro
+                // tooltipIntervalloMaxD). Questo computed richiama le STESSE funzioni, con le STESSE
+                // condizioni di visibilità già presenti nel template e nello stesso ordine, una sola
+                // volta per giocatore visibile: nessun valore mostrato cambia, cambia solo quante
+                // volte viene ricalcolato (una volta per cambiamento reale dei dati, non per ogni
+                // render). acquistiAvversariNonAssegnatiPerRuolo(ruolo) viene inoltre calcolata una
+                // sola volta per ruolo (tutte le righe della tabella condividono lo stesso ruolo,
+                // essendo giocatoriFiltered già filtrato su currentTab) invece che per ogni riga.
+                const datiRigaCache = computed(() => {
+                    const map = new Map();
+                    const capRuoloCache = new Map();
+                    const capInfoRuolo = (ruolo) => {
+                        if (!capRuoloCache.has(ruolo)) {
+                            const acquisti = acquistiAvversariNonAssegnatiPerRuolo(ruolo);
+                            capRuoloCache.set(ruolo, { acquisti, nonAttivo: acquisti > 0 });
+                        }
+                        return capRuoloCache.get(ruolo);
+                    };
+
+                    giocatoriFiltered.value.forEach(g => {
+                        const mostraExtra = g.stato === 'L' && statoAsta.value !== 'NON INIZIATA';
+                        const intervallo = mostraExtra ? intervalloMaxD(g) : null;
+                        const mostraIntervallo = mostraExtra && intervallo.dispersione > 0;
+                        const capInfo = mostraExtra ? capInfoRuolo(g.ruolo) : null;
+                        map.set(g.nome, {
+                            maxD: calcolaMaxD(g),
+                            mostraExtra,
+                            confidenza: mostraExtra ? calcolaConfidenzaMaxD(g) : 0,
+                            intervallo,
+                            mostraIntervallo,
+                            tooltipIntervallo: mostraIntervallo ? tooltipIntervalloMaxD(g) : '',
+                            mostraCapAvviso: mostraExtra && capInfo.nonAttivo,
+                            titleCapAvviso: (mostraExtra && capInfo.nonAttivo)
+                                ? ('Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + capInfo.acquisti + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), il motore usa la stima aggregata sugli avversari, meno precisa.')
+                                : ''
+                        });
+                    });
+                    return map;
+                });
+                const datiRiga = (g) => datiRigaCache.value.get(g.nome) || {};
+
                 const onUpdateStato = (g) => {
                     if (g.stato === 'L') {
                         g.costo_reale = 0;
@@ -2417,7 +2462,7 @@
                     avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
-                    calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
+                    calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, datiRiga, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
                     accessGranted, inputAccesso, erroreAccesso, tentaAccesso
