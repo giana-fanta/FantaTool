@@ -1258,8 +1258,8 @@
                 // "min(valore, concorrenza.bid + 1)" poco più sotto): finché anche un solo acquisto
                 // "Altri" nello STESSO ruolo del giocatore valutato ha un costo registrato ma nessun
                 // avversario assegnato, il motore non applica il tetto basato sul rivale più forte
-                // conosciuto e ricade sulla stima aggregata (meno precisa, vedi nota "tirannia della
-                // media" su capacitaSpesaAltri). Prima di questo badge quell'informazione era visibile
+                // conosciuto e ricade sulla stima aggregata (vedi capacitaSpesaAltriRuolo). Prima di
+                // questo badge quell'informazione era visibile
                 // solo nel pannello "Impostazioni Lega" (sezione "Partecipanti avversari"), non nel momento —
                 // davanti al numero MAX_D di un giocatore specifico — in cui serve davvero. Nessuna
                 // nuova logica di calcolo: solo un'esposizione in UI di una condizione che il motore già
@@ -1546,7 +1546,7 @@
                 // su un Occ non viene più "sporcata" da acquisti Sca economici nello stesso ruolo (o
                 // viceversa). Gli Extra Avversari (facoltativi, senza CAT propria) non sono attribuibili
                 // a una CAT specifica e non entrano in questo calcolo per-CAT (contribuiscono comunque
-                // alle statistiche globali di capacitaSpesaAltri, vedi sotto).
+                // alla capacità di spesa stimata per manager, vedi capacitaSpesaAltriRuolo più sotto).
                 const mediaCreditiAltriCatInfo = (ruolo, cat) => {
                     const altri = giocatori.value.filter(g => g.ruolo === ruolo && g.cat === cat && g.stato === 'A' && g.costo_reale > 0);
                     if (!altri.length) return { media: 0, numAcquisti: 0, dispersioneRapporto: 0, maxRapporto: 0 };
@@ -1609,34 +1609,42 @@
                 // il punto dell'asta in cui si trovano, <1 se ne hanno meno (es. hanno speso più del
                 // previsto altrove, o sono "al verde"). Resta vicino a 1 finché mancano abbastanza
                 // osservazioni (vedi n0PressioneAvversari), dato che i costi "Altri" sono facoltativi.
-                //
-                // LIMITE NOTO ("tirannia della media", lato budget — stessa radice del limite analogo
-                // lato prezzo-giocatore): budgetTotaleAltri e creditiSpesiAltriTotali sono somme
-                // aggregate su tutti gli avversari. Uno scenario con molti avversari "al verde" e 1 con
-                // budget pieno produce lo STESSO valore aggregato di uno scenario con tutti e 9 a budget
-                // moderato — ma la pressione competitiva reale su un giocatore conteso è radicalmente
-                // diversa (nel primo caso basta superare la disponibilità di un solo rivale ricco). Il
-                // modello non distingue i due casi perché non traccia la distribuzione per singolo
-                // manager (l'acquisto "Altri" non è associato a un manager specifico, solo alla
-                // collettività "Altri"): servirebbe un cambio di modello dati (tracciare gli acquisti
-                // per manager) per risolverlo tecnicamente. Per ora la scelta è documentare il limite
-                // (anche in UI, vedi nota nel Control Panel) invece di correggerlo, così l'utente sa di
-                // dover integrare il numero con il proprio giudizio qualitativo caso per caso.
-                const capacitaSpesaAltri = computed(() => {
-                    // Con dati per-manager, la capacità aggregata è la media dei rapporti
-                    // budget residuo / budget residuo teorico dei singoli avversari.
-                    const vals = avversari.value.map(avv => {
-                        const s = statAvversario(avv.id);
-                        if (s.budgetIniziale <= 0 || s.slotTotali <= 0) return null;
-                        const progresso = s.slotOccupati / s.slotTotali;
-                        const atteso = s.budgetIniziale * (1 - progresso);
-                        if (atteso <= 0) return null;
-                        return s.budgetResiduo / atteso;
-                    }).filter(v => Number.isFinite(v));
+                // Per singolo avversario, il rapporto è budget residuo / budget residuo teorico atteso
+                // per il punto dell'asta in cui si trova — dato già tracciato per manager (statAvversario).
+                const rapportoCapacitaAvversario = (avv) => {
+                    const s = statAvversario(avv.id);
+                    if (s.budgetIniziale <= 0 || s.slotTotali <= 0) return null;
+                    const progresso = s.slotOccupati / s.slotTotali;
+                    const atteso = s.budgetIniziale * (1 - progresso);
+                    if (atteso <= 0) return null;
+                    return s.budgetResiduo / atteso;
+                };
+
+                // [Fix "tirannia della media" — uso specifico dentro ②/pressione avversari] Per la
+                // pressione sul ruolo che si sta valutando non ha senso mediare la capacità di spesa su
+                // TUTTI gli avversari: contano solo quelli che hanno ANCORA slot liberi in quel ruolo
+                // (sono gli unici ad aggiungere pressione reale su di esso), e tra questi lo scenario
+                // che conta di più — "un rivale ricco e affamato di quello slot + gli altri otto al
+                // verde" — va colto per intero, non appiattito nella media con "nove rivali mediamente
+                // forniti": la pressione competitiva reale sul giocatore conteso è quella del rivale più
+                // pericoloso, non quella media del gruppo. Il dato per farlo esiste già (statAvversario /
+                // statAvversarioRuolo, tracciati per singolo manager): questa funzione isola il
+                // sottoinsieme di avversari ancora scoperti nel ruolo e ne prende il MASSIMO rapporto
+                // budget-residuo/atteso invece della media. Con un solo avversario scoperto nel ruolo (o
+                // nessuno) il risultato coincide con quello che avrebbe dato la media semplice: la
+                // differenza emerge solo nello scenario asimmetrico che la media appiattiva.
+                const capacitaSpesaAltriRuolo = (ruolo) => {
+                    const vals = avversari.value
+                        .filter(avv => {
+                            const sr = statAvversarioRuolo(avv.id, ruolo);
+                            return sr.slotTotali > 0 && sr.slotOccupati < sr.slotTotali;
+                        })
+                        .map(rapportoCapacitaAvversario)
+                        .filter(v => Number.isFinite(v));
                     if (!vals.length) return 1;
-                    const media = vals.reduce((a, b) => a + b, 0) / vals.length;
-                    return clampValore(media, FINETUNING.capacitaAvversariMin, FINETUNING.capacitaAvversariMax);
-                });
+                    const massimo = Math.max(...vals);
+                    return clampValore(massimo, FINETUNING.capacitaAvversariMin, FINETUNING.capacitaAvversariMax);
+                };
 
                 // Dispersione osservata globale dei rapporti costo_reale/MAX degli "Altri":
                 // non pretende di ricostruire i budget dei singoli manager, ma misura quanto
@@ -1960,10 +1968,14 @@
 
                 const fattoreSostituibilita = (g) => analisiSostituibilita(g).fattore;
 
-                // H) Compressione correlazione mercato: ①(inflazione ibrida) e ③(momentum) non sono
-                // evidenze statisticamente indipendenti — misurano entrambe, con angolazioni diverse,
-                // lo stesso cambiamento del costo-opportunità di mercato. La sostituibilità ④ resta
-                // separata perché riguarda il confronto con le alternative disponibili, non il mercato.
+                // H) Compressione correlazione mercato: ①(inflazione ibrida), ②(pressione avversari) e
+                // ③(momentum) non sono evidenze statisticamente indipendenti — misurano tutte e tre, con
+                // angolazioni diverse, lo stesso surriscaldamento del mercato su un ruolo/CAT (se gli
+                // avversari stanno spingendo forte lì, ce lo si aspetta a vedere sia nei prezzi "Altri"
+                // osservati, sia nel momentum recente, sia nella loro pressione strutturale residua). La
+                // sostituibilità ④ resta separata perché riguarda il confronto con le alternative
+                // disponibili, non il mercato. Generalizza a un numero qualsiasi di fattori concordi,
+                // non solo due, quindi include ② senza bisogno di modifiche alla funzione stessa.
                 //
                 // Questa funzione lavora in spazio logaritmico (dove moltiplicare = sommare) e applica
                 // uno sconto geometrico (correlazioneMercato, "rho") ai contributi CONCORDI col segno
@@ -2204,18 +2216,25 @@
                     const gainScarsita = cfg && cfg.gainScarsita !== undefined ? cfg.gainScarsita : 1;
 
                     // ② Pressione da slot avversari ancora da riempire in quel ruolo: amplifica
-                    // leggermente il moltiplicatore di categoria (pesata come le altre CAT, così Occ
+                    // leggermente il segnale di mercato (pesata come le altre CAT, così Occ
                     // "sente" la pressione più di Sca) quando gli avversari devono ancora comprare
                     // molto in quel ruolo — un segnale di domanda esterna che F_ruolo da solo non vede.
                     // [Raffinamento D] Tanti slot mancanti non significano pressione al rialzo se gli
                     // avversari non hanno più budget per riempirli: la pressione grezza viene quindi
-                    // corretta per la capacità di spesa residua stimata (capacitaSpesaAltri), attivata
-                    // gradualmente (sogliaConfidenza) solo quando ci sono abbastanza osservazioni sui
-                    // costi "Altri" (dato facoltativo) — altrimenti resta la sola pressione grezza.
+                    // corretta per la capacità di spesa residua stimata, attivata gradualmente
+                    // (sogliaConfidenza) solo quando ci sono abbastanza osservazioni sui costi "Altri"
+                    // (dato facoltativo) — altrimenti resta la sola pressione grezza.
+                    // [Fix "tirannia della media", uso specifico in ②] La capacità di spesa rilevante
+                    // per la pressione su g.ruolo non è la media di TUTTI gli avversari (appiattisce
+                    // "un rivale ricco e affamato di quello slot + otto al verde" nello stesso numero
+                    // di "nove rivali mediamente forniti"), ma quella di chi ha ancora slot liberi
+                    // PROPRIO in quel ruolo — sono solo loro ad aggiungere pressione reale — e tra
+                    // questi conta soprattutto la coda superiore: capacitaSpesaAltriRuolo isola quel
+                    // sottoinsieme e ne prende il massimo, non la media (vedi funzione più sopra).
                     const statoAvv = statoSlotAvversari(g.ruolo);
                     const pressioneAvversariGrezza = statoAvv.totale ? statoAvv.mancanti / statoAvv.totale : 0;
                     const confPressione = sogliaConfidenza(numOsservazioniAltriTotali.value, FINETUNING.n0PressioneAvversari);
-                    const capacitaEff = 1 + confPressione * (capacitaSpesaAltri.value - 1);
+                    const capacitaEff = 1 + confPressione * (capacitaSpesaAltriRuolo(g.ruolo) - 1);
                     const pressioneAvversariAggregata = pressioneAvversariGrezza * capacitaEff;
 
                     // La pressione degli avversari resta un segnale strutturale di domanda/scarsità.
@@ -2223,8 +2242,19 @@
                     // del duello, non il limite economico razionale del nostro agente.
                     const pressioneAvversari = pressioneAvversariAggregata;
                     const pesoCategoriaNorm = pesoCategoria / 0.5;
-                    const moltiplicatoreCategoria = (1 + m.F * pesoCategoria * gainScarsita) *
-                        (1 + FINETUNING.betaPressioneAvversari * pesoCategoriaNorm * pressioneAvversari);
+                    // [Fix correlazione incompleta] ② non è indipendente da ①③: se il mercato si sta
+                    // surriscaldando su un ruolo/CAT (inflazione osservata alta, momentum in salita), è
+                    // statisticamente atteso che anche la pressione strutturale degli avversari sia alta
+                    // nello stesso momento — sono tre facce dello stesso fenomeno ("gli avversari stanno
+                    // spingendo forte qui"), non tre evidenze indipendenti da moltiplicare a piena forza.
+                    // Il fattore di pressione viene quindi isolato dal resto del moltiplicatore di
+                    // categoria (che qui resta solo scarsità F, non correlata a ①③) e passato a
+                    // combinaFattoriCorrelati insieme a inflazioneIbrida e momentum, poco più sotto:
+                    // è sempre ≥1 (pressioneAvversari non è mai negativa), quindi nello spazio
+                    // logaritmico può solo pesare come contributo concorde-espansivo o restare a 0,
+                    // mai discorde — coerente con l'essere una terza faccia dello stesso segnale.
+                    const fattorePressioneAvversari = 1 + FINETUNING.betaPressioneAvversari * pesoCategoriaNorm * pressioneAvversari;
+                    const moltiplicatoreCategoria = (1 + m.F * pesoCategoria * gainScarsita);
 
                     let fattoreRuolo = 1; // per gli attaccanti (A) il fattore V/W/X non è applicato (=1)
                     if (g.ruolo !== 'A') {
@@ -2291,15 +2321,16 @@
                     // budget residuo" invece di rincorrere il prezzo.
                     const riallocazioneCat = fattoreRiallocazioneCat(g, m);
 
-                    // H) ①(inflazioneIbrida) e ③(momentum) sono i due segnali di mercato correlati;
-                    // ④(sostituibilità) resta separato perché misura il costo-opportunità delle alternative.
-                    // correlati (vedi commento su combinaFattoriCorrelati): vengono combinati con lo
-                    // sconto geometrico invece che moltiplicati a piena forza. moltiplicatoreCategoria
-                    // (che include ②, pressione avversari — un segnale strutturale su slot/quote, non
-                    // di prezzo osservato), fattoreRuolo (V/W/X, disponibilità budget), sazieta,
-                    // sazietaGenerale e riallocazioneCat restano fattori distinti e non correlati con
-                    // ①③ nello stesso senso, quindi continuano a moltiplicarsi come prima.
-                    const fattoreMercatoCombinato = combinaFattoriCorrelati([inflazioneIbrida, momentum]);
+                    // H) ①(inflazioneIbrida), ②(fattorePressioneAvversari) e ③(momentum) sono le tre
+                    // facce dello stesso fenomeno di mercato correlate tra loro (vedi commento sopra su
+                    // ② e su combinaFattoriCorrelati): vengono combinate con lo sconto geometrico invece
+                    // che moltiplicate a piena forza. ④(sostituibilità) resta separato perché misura il
+                    // costo-opportunità delle alternative, non il surriscaldamento del mercato.
+                    // moltiplicatoreCategoria (ora solo scarsità F, senza più ②), fattoreRuolo (V/W/X,
+                    // disponibilità budget), sazieta, sazietaGenerale e riallocazioneCat restano fattori
+                    // distinti e non correlati con ①②③ nello stesso senso, quindi continuano a
+                    // moltiplicarsi come prima.
+                    const fattoreMercatoCombinato = combinaFattoriCorrelati([inflazioneIbrida, fattorePressioneAvversari, momentum]);
 
                     // [I: Smorzamento pro-ciclico] Margine di sicurezza reale: quanta parte del budget
                     // residuo dell'utente resta libera OLTRE alla riserva fisica minima (1 credito per
@@ -2389,7 +2420,7 @@
                     const osservazioniEffettiveInflazione = pesoTotaleInflazione / (PESO_INFLAZIONE[g.cat] || 1);
                     const confInflazione = sogliaConfidenza(osservazioniEffettiveInflazione, FINETUNING.n0Inflazione);
 
-                    // ② stesso conteggio globale usato per attivare la correzione di capacitaSpesaAltri
+                    // ② stesso conteggio globale usato per attivare la correzione di capacitaSpesaAltriRuolo
                     const confPressione = sogliaConfidenza(numOsservazioniAltriTotali.value, FINETUNING.n0PressioneAvversari);
 
                     // ③ stesso storico transazioni filtrato per ruolo, riespresso in transazioni
