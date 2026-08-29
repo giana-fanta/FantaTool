@@ -742,7 +742,8 @@
                     riallocazioneCatMin: 0.65,                     // F: pavimento del fattore di riallocazione (mai sotto il 65%)
                     n0RiallocazioneCat: 4,                         // F: osservazioni reali minime (per lato del confronto) per confidenza piena
                     sogliaScartoRiallocazione: 0.15,                // F: deadzone — scarto relativo minimo prima che il fattore reagisca
-                    limiteScartoRiallocazione: 1.0                  // F: clamp dello scarto relativo (evita overreaction su outlier)
+                    limiteScartoRiallocazione: 1.0,                 // F: clamp dello scarto relativo (evita overreaction su outlier)
+                    correlazioneMercato: 0.45                       // H: sconto peso per ogni ulteriore fattore ①③④ concorde (vedi combinaFattoriCorrelati)
                 };
 
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
@@ -1650,6 +1651,55 @@
                     return 1 + FINETUNING.deltaRank * percentile * (1 - fRuolo) * confCampione;
                 };
 
+                // H) Compressione correlazione mercato [nuovo, discusso]: ①(inflazione ibrida),
+                // ③(momentum) e ④(rank) non sono evidenze statisticamente indipendenti — misurano
+                // tutte, con angolazioni diverse (livello / tendenza recente / scarsità dei
+                // superstiti), lo STESSO fenomeno sottostante: "il mercato sta pagando più del
+                // previsto in questo ruolo/CAT". Moltiplicarle a piena forza (come nella versione
+                // precedente) fa sì che in un'asta realmente "calda" — dove tutte e tre si attivano
+                // insieme, con lo stesso segno — il loro effetto congiunto si componga in modo
+                // ridondante ben oltre l'intenzione dei singoli pesi (es. tre correzioni +15-20%
+                // "indipendenti" producono insieme ~+70-90% invece di restare nell'ordine di +45-60%),
+                // proprio nello scenario in cui il tetto dovrebbe restare più, non meno, disciplinato.
+                //
+                // Questa funzione lavora in spazio logaritmico (dove moltiplicare = sommare) e applica
+                // uno sconto geometrico (correlazioneMercato, "rho") ai contributi CONCORDI col segno
+                // prevalente, in ordine di magnitudine decrescente: il segnale più forte pesa per
+                // intero, il secondo concorde pesa rho, il terzo concorde rho^2, ecc. I contributi
+                // DISCORDI (che si contraddicono a vicenda, es. inflazione in salita ma momentum in
+                // discesa) non vengono scontati: rappresentano informazione genuina — disaccordo tra
+                // segnali — non ridondanza, e in quel caso il comportamento resta identico al prodotto
+                // pieno di prima.
+                //
+                // Invarianti verificati:
+                //  - Se tutti i fattori sono 1 (nessun dato dinamico attivo) → risultato 1, identico
+                //    alla versione precedente e all'invariante "MAX_D = MAX_base senza acquisti".
+                //  - Se un solo fattore è ≠1 → nessuno sconto (k parte da 0 per il primo elemento
+                //    processato), risultato identico al prodotto semplice di prima.
+                //  - Se i fattori sono discordi → nessuno sconto, risultato identico al prodotto pieno.
+                //  - Se i fattori sono concordi (il caso a rischio) → risultato compreso tra "solo il
+                //    più forte dei tre" e "prodotto pieno", mai fuori da quell'intervallo, e monotono
+                //    in ciascun fattore in ingresso (più forte è un segnale, più il risultato si sposta
+                //    verso il prodotto pieno di quel segnale, mai lo supera).
+                const combinaFattoriCorrelati = (fattori) => {
+                    const devLog = fattori.map(f => Math.log(Math.max(f, 1e-6)));
+                    const sommaGrezza = devLog.reduce((s, v) => s + v, 0);
+                    if (sommaGrezza === 0) return Math.exp(devLog.reduce((s, v) => s + v, 0)); // caso neutro/discorde puro
+                    const segnoPrevalente = Math.sign(sommaGrezza);
+                    const ordinati = [...devLog].sort((a, b) => Math.abs(b) - Math.abs(a));
+                    let totale = 0, k = 0;
+                    ordinati.forEach(d => {
+                        const concorde = d !== 0 && Math.sign(d) === segnoPrevalente;
+                        if (concorde) {
+                            totale += d * Math.pow(FINETUNING.correlazioneMercato, k);
+                            k++;
+                        } else {
+                            totale += d; // discorde: nessuno sconto, pesa per intero come nel prodotto originale
+                        }
+                    });
+                    return Math.exp(totale);
+                };
+
                 // ⑤ Fattore di sazietà [Raffinamento E]: V/W/X (fattoreRuolo, poco sotto) riflette
                 // solo la disponibilità di BUDGET residuo rispetto alla soglia attesa — non quanti
                 // giocatori di quella CAT sono già stati presi. Di conseguenza un acquisto "a poco
@@ -1953,7 +2003,16 @@
                     // budget residuo" invece di rincorrere il prezzo.
                     const riallocazioneCat = fattoreRiallocazioneCat(g, m);
 
-                    let valore = Math.round(g.max * inflazioneIbrida * moltiplicatoreCategoria * fattoreRuolo * momentum * rank * sazieta * sazietaGenerale * riallocazioneCat);
+                    // H) ①(inflazioneIbrida), ③(momentum) e ④(rank) sono i tre fattori "di mercato"
+                    // correlati (vedi commento su combinaFattoriCorrelati): vengono combinati con lo
+                    // sconto geometrico invece che moltiplicati a piena forza. moltiplicatoreCategoria
+                    // (che include ②, pressione avversari — un segnale strutturale su slot/quote, non
+                    // di prezzo osservato), fattoreRuolo (V/W/X, disponibilità budget), sazieta,
+                    // sazietaGenerale e riallocazioneCat restano fattori distinti e non correlati con
+                    // ①③④ nello stesso senso, quindi continuano a moltiplicarsi come prima.
+                    const fattoreMercatoCombinato = combinaFattoriCorrelati([inflazioneIbrida, momentum, rank]);
+
+                    let valore = Math.round(g.max * fattoreMercatoCombinato * moltiplicatoreCategoria * fattoreRuolo * sazieta * sazietaGenerale * riallocazioneCat);
 
                     // [Nuovo] Segnale manuale di domanda molto contesa: non prova a stimare il rivale,
                     // ma incorpora l'informazione qualitativa che l'utente possiede e i dati aggregati non possono vedere.
