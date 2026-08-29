@@ -1888,13 +1888,8 @@
 
                 // ④ Fattore di posizione in CAT: il bonus è proporzionale sia a quanto il giocatore
                 // è in alto nella propria CAT (percentile) sia a quanto quella CAT è già scarsa
-                // (1 - F_ruolo, cioè F_ruolo basso = CAT quasi esaurita). Se la CAT è ancora
-                // abbondante il fattore resta vicino a 1 anche per i migliori.
-                // [Raffinamento D] Il percentile grezzo vale 1 anche quando resta un solo giocatore
-                // libero in quella CAT/ruolo, indipendentemente da quanti ce n'erano in partenza: un
-                // fattore di confidenza basato sulla numerosità ORIGINARIA della CAT (countCat, tutti
-                // gli stati) attenua il bonus quando quel campione era comunque troppo piccolo perché
-                // "essere il migliore rimasto" sia un segnale forte.
+                // (F_ruolo stesso: F alto = CAT quasi esaurita, F basso = CAT ancora abbondante).
+                // Se la CAT è ancora abbondante il fattore resta vicino a 1 anche per i migliori.
                 const fattoreRank = (g, fRuolo) => {
                     const percentile = percentileMaxInCat(g);
                     const confCampione = sogliaConfidenza(countCat(g.ruolo, g.cat), FINETUNING.sogliaCampioneRank);
