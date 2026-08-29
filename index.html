@@ -107,6 +107,12 @@
         .lock-hint { font-size: 12px; color: #6b7383; margin-top: 15px; }
         .btn-dark { background: #343945; }
         .note { font-size: 12px; color: var(--text-muted); margin-top: -10px; margin-bottom: 15px; }
+        /* Riga di aggiunta rapida "Extra" nei pannelli P/D/C/A */
+        .extra-rapido-bar { display: flex; gap: 18px; margin-bottom: 18px; flex-wrap: wrap; align-items: end; padding: 12px 15px; background: var(--squadra-bg); border: 1px solid var(--border); border-radius: 8px; }
+        .extra-rapido-bar .campo { display: flex; flex-direction: column; }
+        .extra-rapido-bar label { font-size: 12px; color: var(--squadra-text); margin-bottom: 4px; font-weight: bold; }
+        .extra-rapido-bar select, .extra-rapido-bar input[type="number"] { min-width: 170px; }
+
         .filtri-bar { display: flex; gap: 18px; margin-bottom: 15px; flex-wrap: wrap; align-items: start; }
         .filtri-bar .campo { display: flex; flex-direction: column; }
         .filtri-bar label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
@@ -403,6 +409,26 @@
 
         <!-- LISTE GIOCATORI (P, D, C, A) -->
         <div v-if="['P', 'D', 'C', 'A'].includes(currentTab)" class="table-container">
+            <!-- Aggiunta rapida di un giocatore Extra (Mio o di un avversario) per questo ruolo:
+                 scrive direttamente su extra[ruolo] / extraAvversari[id][ruolo], gli stessi campi
+                 della scheda "Extra", così tutte le metriche esistenti si aggiornano da sole. -->
+            <div class="extra-rapido-bar">
+                <div class="campo">
+                    <label>Aggiungi Extra {{ currentTab }} a</label>
+                    <select v-model="extraRapido.target">
+                        <option value="">Seleziona…</option>
+                        <option value="MIO">Mio</option>
+                        <option v-for="avv in avversari" :key="'er-' + avv.id" :value="avv.id">{{ avv.nome || avv.id }}</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Crediti spesi</label>
+                    <input type="number" min="0" v-model.number="extraRapido.crediti" placeholder="0">
+                </div>
+                <div class="campo" style="justify-content:end;">
+                    <button type="button" class="btn btn-success" :disabled="!extraRapido.target" @click="aggiungiExtraRapido(currentTab)">+ Aggiungi Extra</button>
+                </div>
+            </div>
             <div class="filtri-bar">
                 <div class="campo campo-search">
                     <label>Cerca per nome</label>
@@ -1271,6 +1297,38 @@
                 };
 
                 const extraAvversarioRuolo = (avversarioId, ruolo) => extraAvversari.value?.[avversarioId]?.[ruolo] || { slot: 0, crediti: 0 };
+
+                // Aggiunta rapida di un giocatore Extra dai pannelli P/D/C/A: il ruolo è già
+                // determinato dalla scheda corrente, qui si sceglie solo il destinatario ("MIO"
+                // oppure l'id di un avversario) e i crediti spesi. Scrive esattamente sugli stessi
+                // campi della scheda "Extra" (extra[ruolo] per "Mio", extraAvversari[id][ruolo] per
+                // gli avversari), quindi tutte le metriche/formule che già leggono quei campi si
+                // aggiornano da sole, senza bisogno di nuova logica di calcolo. Dopo il salvataggio
+                // il modulo si auto-resetta per permettere subito un nuovo inserimento.
+                const extraRapido = ref({ target: '', crediti: null });
+
+                const aggiungiExtraRapido = (ruolo) => {
+                    const target = extraRapido.value.target;
+                    if (!target) return;
+                    const crediti = Math.max(0, round2(Number(extraRapido.value.crediti) || 0));
+
+                    if (target === 'MIO') {
+                        const item = extra.value[ruolo];
+                        item.slot = (item.slot || 0) + 1;
+                        item.crediti = round2((item.crediti || 0) + crediti);
+                        if (!item.dettagli) item.dettagli = [];
+                        item.dettagli.push({ nome: '', costo: crediti });
+                    } else {
+                        sincronizzaExtraAvversari();
+                        const item = extraAvversari.value[target]?.[ruolo];
+                        if (!item) return;
+                        item.slot = (item.slot || 0) + 1;
+                        item.crediti = round2((item.crediti || 0) + crediti);
+                    }
+
+                    salvaStato();
+                    extraRapido.value = { target: '', crediti: null };
+                };
 
                 // Slot ancora da riempire dagli avversari per un ruolo: totale slot richiesti da
                 // tutti gli avversari meno i giocatori di quel ruolo già presi da "Altri" (stato 'A').
@@ -2534,6 +2592,7 @@
                     avversari, nomeAvversario, statAvversario, statAvversarioRuolo, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
+                    extraRapido, aggiungiExtraRapido,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, datiRiga, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
