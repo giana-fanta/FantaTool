@@ -568,7 +568,7 @@
                         <td v-for="ruolo in ['P', 'D', 'C', 'A']" :key="avv.id + '-' + ruolo">
                             <div class="qty-stepper">
                                 <button type="button" class="qty-btn" @click="stepAvversarioExtra(avv.id, ruolo, 'slot', -1)">−</button>
-                                <input type="number" min="0" v-model.number="extraAvversari[avv.id][ruolo].slot" @input="salvaAvversariExtra">
+                                <input type="number" min="0" v-model.number="extraAvversari[avv.id][ruolo].slot" @input="onSlotAvversarioExtraChange(avv.id, ruolo)">
                                 <button type="button" class="qty-btn" @click="stepAvversarioExtra(avv.id, ruolo, 'slot', 1)">+</button>
                             </div>
                             <div class="qty-stepper" style="margin-top:6px;">
@@ -677,7 +677,11 @@
                                     <td>{{ g.nome }}</td>
                                     <td>{{ g.costo_reale || 0 }}</td>
                                 </tr>
-                                <tr v-if="!giocatoriAvversarioPerRuolo(avv.id, ruolo).length">
+                                <tr v-for="(d, idx) in extraAvversarioDettagli(avv.id, ruolo)" :key="avv.id + '-extra-' + ruolo + '-' + idx">
+                                    <td><input type="text" v-model="d.nome" placeholder="Nome (extra)" @input="salvaStato"></td>
+                                    <td><input type="number" min="0" v-model.number="d.costo" @input="salvaStato"></td>
+                                </tr>
+                                <tr v-if="!giocatoriAvversarioPerRuolo(avv.id, ruolo).length && !extraAvversarioDettagli(avv.id, ruolo).length">
                                     <td colspan="2" style="text-align:center; color: var(--text-muted);">Nessun giocatore</td>
                                 </tr>
                             </table>
@@ -1032,14 +1036,22 @@
                 watch(locked, (v) => sessionStorage.setItem('fanta_locked', v ? '1' : '0'));
 
                 // Normalizza il vecchio formato "extra" (array con descrizione) verso il nuovo,
-                // così un backup/localStorage precedente resta leggibile.
+                // così un backup/localStorage precedente resta leggibile. Include anche "dettagli"
+                // (nome/costo compilabili in "Altre Squadre"), tenuto allineato al numero di slot
+                // esattamente come già avviene per extra[ruolo].dettagli ("Mia Squadra").
                 function normalizzaExtraAvversari(valore, elencoAvversari) {
                     const out = {};
                     (elencoAvversari || []).forEach(avv => {
                         out[avv.id] = {};
                         ['P','D','C','A'].forEach(r => {
                             const src = valore?.[avv.id]?.[r] || {};
-                            out[avv.id][r] = { slot: Number(src.slot || 0), crediti: Number(src.crediti || 0) };
+                            const slot = Number(src.slot || 0);
+                            const dettagli = Array.isArray(src.dettagli)
+                                ? src.dettagli.map(d => ({ nome: d.nome || '', costo: d.costo || 0 }))
+                                : [];
+                            while (dettagli.length < slot) dettagli.push({ nome: '', costo: 0 });
+                            while (dettagli.length > slot) dettagli.pop();
+                            out[avv.id][r] = { slot, crediti: Number(src.crediti || 0), dettagli };
                         });
                     });
                     return out;
@@ -1327,10 +1339,25 @@
                     sincronizzaExtraAvversari();
                     const item = extraAvversari.value[avversarioId][ruolo];
                     item[campo] = Math.max(0, Number(item[campo] || 0) + delta);
-                    salvaStato();
+                    if (campo === 'slot') onSlotAvversarioExtraChange(avversarioId, ruolo); else salvaStato();
                 };
 
                 const extraAvversarioRuolo = (avversarioId, ruolo) => extraAvversari.value?.[avversarioId]?.[ruolo] || { slot: 0, crediti: 0 };
+
+                // Tiene allineato l'array "dettagli" (nome/costo compilabili in "Altre Squadre") al
+                // numero di slot extra impostato per l'avversario nella scheda Extra: aggiunge o
+                // rimuove righe vuote, esattamente come onSlotExtraChange fa per "Mio".
+                const onSlotAvversarioExtraChange = (avversarioId, ruolo) => {
+                    const item = extraAvversari.value[avversarioId]?.[ruolo];
+                    if (!item) return;
+                    if (!item.dettagli) item.dettagli = [];
+                    const n = item.slot || 0;
+                    while (item.dettagli.length < n) item.dettagli.push({ nome: '', costo: 0 });
+                    while (item.dettagli.length > n) item.dettagli.pop();
+                    salvaStato();
+                };
+
+                const extraAvversarioDettagli = (avversarioId, ruolo) => extraAvversari.value?.[avversarioId]?.[ruolo]?.dettagli || [];
 
                 // Aggiunta rapida di un giocatore Extra dai pannelli P/D/C/A: il ruolo è già
                 // determinato dalla scheda corrente, qui si sceglie solo il destinatario ("MIO"
@@ -2744,7 +2771,7 @@
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
                     avversari, nomeAvversario, statAvversario, statAvversarioRuolo, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
                     composizioneLiberiCat, conicGradientCat,
-                    onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
+                    onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, onSlotAvversarioExtraChange, extraAvversarioDettagli, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     extraRapido, aggiungiExtraRapido,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, datiRiga, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, esportaSquadre, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
