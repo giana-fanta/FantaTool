@@ -2660,8 +2660,10 @@
 
                 // Esporta, in un semplice file di testo, tutte le squadre della lega (la propria
                 // e quelle di ogni avversario) con, per ciascun calciatore acquistato, nome, ruolo
-                // e costo reale pagato, raggruppati e ordinati per ruolo. Solo lettura dei dati
-                // esistenti: non modifica in alcun modo logiche o valori dell'applicazione.
+                // e costo reale pagato, raggruppati e ordinati per ruolo, più eventuali Extra con
+                // nome compilato e il residuo di crediti non spesi. Solo lettura dei dati esistenti
+                // (giocatori, extra/extraAvversari, budgetResiduo/statAvversario già calcolati
+                // altrove): non modifica in alcun modo logiche o valori dell'applicazione.
                 const RUOLI_ORDINE_EXPORT = ['P', 'D', 'C', 'A'];
                 const RUOLI_LABEL_EXPORT = { P: 'PORTIERI', D: 'DIFENSORI', C: 'CENTROCAMPISTI', A: 'ATTACCANTI' };
 
@@ -2669,7 +2671,9 @@
                     const righe = [];
                     const separatore = '='.repeat(50);
 
-                    const aggiungiSquadra = (titolo, elenco) => {
+                    // dettagliPerRuolo(ruolo) deve restituire gli eventuali dettagli Extra (con nome
+                    // compilato) di quella squadra per quel ruolo: { extra: [...] } -> [{nome, costo}]
+                    const aggiungiSquadra = (titolo, elenco, dettagliPerRuolo, residuo) => {
                         righe.push(separatore);
                         righe.push(titolo);
                         righe.push(separatore);
@@ -2679,7 +2683,9 @@
                                 .filter(g => g.ruolo === ruolo)
                                 .slice()
                                 .sort((a, b) => a.nome.localeCompare(b.nome));
-                            if (!giocatoriRuolo.length) return;
+                            const extraRuolo = (dettagliPerRuolo(ruolo) || [])
+                                .filter(d => (d.nome || '').trim());
+                            if (!giocatoriRuolo.length && !extraRuolo.length) return;
                             righe.push('');
                             righe.push(RUOLI_LABEL_EXPORT[ruolo] + ':');
                             giocatoriRuolo.forEach(g => {
@@ -2687,23 +2693,41 @@
                                 totale += costo;
                                 righe.push(`  - ${g.nome} (${g.ruolo}) - ${costo}`);
                             });
+                            extraRuolo.forEach(d => {
+                                const costo = Number(d.costo) || 0;
+                                totale += costo;
+                                righe.push(`  - [Extra] ${d.nome.trim()} (${ruolo}) - ${costo}`);
+                            });
                         });
                         righe.push('');
                         righe.push(`Totale speso: ${totale}`);
+                        if (residuo !== null && residuo !== undefined) {
+                            righe.push(`Crediti residui: ${round2(residuo)}`);
+                        }
                         righe.push('');
                         righe.push('');
                     };
 
-                    aggiungiSquadra('LA TUA SQUADRA', giocatori.value.filter(g => g.stato === 'M'));
+                    aggiungiSquadra(
+                        'LA TUA SQUADRA',
+                        giocatori.value.filter(g => g.stato === 'M'),
+                        (ruolo) => extraDettagli(ruolo),
+                        budgetResiduo.value
+                    );
 
                     avversari.value.forEach(avv => {
                         const elenco = giocatori.value.filter(g => g.stato === 'A' && g.avversarioId === avv.id);
-                        aggiungiSquadra((avv.nome || avv.id).toUpperCase(), elenco);
+                        aggiungiSquadra(
+                            (avv.nome || avv.id).toUpperCase(),
+                            elenco,
+                            (ruolo) => extraAvversarioDettagli(avv.id, ruolo),
+                            statAvversario(avv.id).budgetResiduo
+                        );
                     });
 
                     const nonAssegnati = giocatori.value.filter(g => g.stato === 'A' && !g.avversarioId);
                     if (nonAssegnati.length) {
-                        aggiungiSquadra('ACQUISTI NON ASSEGNATI A UN AVVERSARIO', nonAssegnati);
+                        aggiungiSquadra('ACQUISTI NON ASSEGNATI A UN AVVERSARIO', nonAssegnati, () => [], null);
                     }
 
                     const contenuto = righe.join('\n');
