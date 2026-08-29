@@ -118,7 +118,7 @@
         .extra-rapido-bar { display: flex; gap: 18px; margin-bottom: 18px; flex-wrap: wrap; align-items: end; padding: 12px 15px; background: var(--squadra-bg); border: 1px solid var(--border); border-radius: 8px; }
         .extra-rapido-bar .campo { display: flex; flex-direction: column; }
         .extra-rapido-bar label { font-size: 12px; color: var(--squadra-text); margin-bottom: 4px; font-weight: bold; }
-        .extra-rapido-bar select, .extra-rapido-bar input[type="number"] { min-width: 170px; }
+        .extra-rapido-bar select, .extra-rapido-bar input[type="number"], .extra-rapido-bar input[type="text"] { min-width: 170px; }
 
         .filtri-bar { display: flex; gap: 18px; margin-bottom: 15px; flex-wrap: wrap; align-items: start; }
         .filtri-bar .campo { display: flex; flex-direction: column; }
@@ -440,6 +440,10 @@
                     </select>
                 </div>
                 <div class="campo">
+                    <label>Nome giocatore</label>
+                    <input type="text" v-model="extraRapido.nome" placeholder="Nome (facoltativo)">
+                </div>
+                <div class="campo">
                     <label>Crediti spesi</label>
                     <div class="qty-stepper">
                         <button type="button" class="qty-btn" @click="stepExtraRapido(-1)">−</button>
@@ -451,8 +455,9 @@
                     <button type="button" class="btn btn-success" :disabled="!extraRapido.target" @click="aggiungiExtraRapido(currentTab)">+ Aggiungi Extra</button>
                 </div>
                 <div class="campo" style="justify-content:end; margin-left:auto;" v-if="rivaleRuoloCorrente.mostra">
-                    <span class="badge badge-conf" :title="rivaleRuoloCorrente.title">
-                        🎯 Rivale più pericoloso ({{ currentTab }}): ≤{{ rivaleRuoloCorrente.bid }}
+                    <span class="badge" :class="rivaleRuoloCorrente.io ? 'badge-warn' : 'badge-conf'" :title="rivaleRuoloCorrente.title">
+                        <template v-if="rivaleRuoloCorrente.io">🏆 Il più pericoloso sei tu ({{ currentTab }}): ≤{{ rivaleRuoloCorrente.bid }}</template>
+                        <template v-else>🎯 Rivale più pericoloso ({{ currentTab }} · {{ rivaleRuoloCorrente.nome }}): ≤{{ rivaleRuoloCorrente.bid }}</template>
                     </span>
                 </div>
             </div>
@@ -1278,6 +1283,19 @@
                     return Math.max(0, Math.floor(s.budgetResiduo - reserveDopoAcquisto));
                 };
 
+                // Analoga a massimoBidAvversario, ma applicata ai dati dell'utente stesso ("Mio"):
+                // stessa identica formula (budget residuo meno riserva di 1 credito per ogni altro
+                // slot ancora libero), qui letta da budgetResiduo/metrics dell'utente invece che da
+                // statAvversario. Serve solo a confrontare, nel badge del ruolo, chi ha in questo
+                // momento il maggior potere di spesa sostenibile: non entra nel motore MAX_D né in
+                // nessun altro calcolo esistente.
+                const massimoBidMio = (ruolo) => {
+                    const slotRuolo = metrics.value[ruolo]?.slotLiberi || 0;
+                    if (slotRuolo <= 0) return 0;
+                    const reserveDopoAcquisto = Math.max(0, slotLiberiTotali.value - 1);
+                    return Math.max(0, Math.floor(budgetResiduo.value - reserveDopoAcquisto));
+                };
+
                 // [Punto 1] Tra gli avversari con slot ancora liberi nel ruolo, quello col massimo
                 // esborso sostenibile: il "rivale più pericoloso" mostrato come informazione a schermo
                 // (badge neutro accanto a MAX_D), mai come input del suo calcolo.
@@ -1394,7 +1412,7 @@
                 // gli avversari), quindi tutte le metriche/formule che già leggono quei campi si
                 // aggiornano da sole, senza bisogno di nuova logica di calcolo. Dopo il salvataggio
                 // il modulo si auto-resetta per permettere subito un nuovo inserimento.
-                const extraRapido = ref({ target: '', crediti: null });
+                const extraRapido = ref({ target: '', nome: '', crediti: null });
 
                 // Incrementa/decrementa i crediti del modulo "Extra Rapido" (bozza non ancora
                 // salvata), senza scendere sotto zero. Analogo a stepExtra ma sul campo temporaneo
@@ -1412,10 +1430,24 @@
                     if (statoAsta.value === 'NON INIZIATA') return { mostra: false };
                     const ruolo = currentTab.value;
                     const rivale = massimaConcorrenzaEconomica(ruolo);
+                    const mioBid = massimoBidMio(ruolo);
+                    // Se il maggior potere di spesa sostenibile per questo ruolo è in questo
+                    // momento quello dell'utente stesso (e non di un avversario), il badge dedica
+                    // spazio a lui: non ha senso indicare l'utente come "rivale" di se stesso.
+                    if (mioBid > 0 && mioBid > rivale.bid) {
+                        return {
+                            mostra: true,
+                            io: true,
+                            bid: mioBid,
+                            title: 'In questo momento sei tu ad avere, per il ruolo ' + ruolo + ', il maggior potere di spesa sostenibile: fino a circa ' + mioBid + ' crediti (budget residuo stimato al netto della riserva fisica per i tuoi altri slot). Informazione descrittiva sulla tua competitività nel duello: NON è un tetto sul MAX_D, che resta calcolato in base alla convenienza per te.'
+                        };
+                    }
                     if (!(rivale.bid > 0)) return { mostra: false };
                     return {
                         mostra: true,
+                        io: false,
                         bid: rivale.bid,
+                        nome: nomeAvversario(rivale.id) || 'un avversario',
                         title: 'Rivale più pericoloso per il ruolo ' + ruolo + ': ' + (nomeAvversario(rivale.id) || 'un avversario') + ' può arrivare fino a circa ' + rivale.bid + ' crediti (budget residuo stimato al netto della riserva fisica per gli altri suoi slot). Informazione descrittiva sulla competitività del duello: NON è un tetto sul MAX_D, che resta calcolato in base alla convenienza per te.'
                     };
                 });
@@ -1424,13 +1456,17 @@
                     const target = extraRapido.value.target;
                     if (!target) return;
                     const crediti = Math.max(0, round2(Number(extraRapido.value.crediti) || 0));
+                    // Nome facoltativo inserito direttamente dal pannello rapido: finisce nello
+                    // stesso identico campo "dettagli[].nome" che la scheda "Extra" (Mia Squadra /
+                    // Extra Avversari) legge e modifica, quindi resta sempre sincronizzato con essa.
+                    const nome = (extraRapido.value.nome || '').trim();
 
                     if (target === 'MIO') {
                         const item = extra.value[ruolo];
                         item.slot = (item.slot || 0) + 1;
                         item.crediti = round2((item.crediti || 0) + crediti);
                         if (!item.dettagli) item.dettagli = [];
-                        item.dettagli.push({ nome: '', costo: crediti });
+                        item.dettagli.push({ nome: nome, costo: crediti });
                     } else {
                         sincronizzaExtraAvversari();
                         const item = extraAvversari.value[target]?.[ruolo];
@@ -1438,11 +1474,11 @@
                         item.slot = (item.slot || 0) + 1;
                         item.crediti = round2((item.crediti || 0) + crediti);
                         if (!item.dettagli) item.dettagli = [];
-                        item.dettagli.push({ nome: '', costo: crediti });
+                        item.dettagli.push({ nome: nome, costo: crediti });
                     }
 
                     salvaStato();
-                    extraRapido.value = { target: '', crediti: null };
+                    extraRapido.value = { target: '', nome: '', crediti: null };
                 };
 
                 // Slot ancora da riempire dagli avversari per un ruolo: totale slot richiesti da
