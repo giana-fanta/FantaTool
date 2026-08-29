@@ -859,43 +859,53 @@
                 //     pagare, non di status): usa PESO_INFLAZIONE, il peso di ambizione/appeal della
                 //     CAT già impiegato altrove (①③) e indipendente dal prezzo di mercato osservato.
                 const FINETUNING = {
-                    alphaInflazioneOsservata: 0.20,     // ① peso della spesa realmente osservata sugli Altri
-                    n0Inflazione: 4,                     // A/B: n. osservazioni (pesate per CAT) per confidenza piena
-                    limiteInflazioneOsservata: 0.5,       // ① clamp dello scarto osservato/atteso (evita outlier)
-                    betaPressioneAvversari: 0.08,         // ② peso della pressione da slot avversari mancanti
-                    n0PressioneAvversari: 5,               // D: n. osservazioni Altri (totali) per confidenza piena
-                    capacitaAvversariMin: 0.5,             // D: clamp inferiore del fattore capacità di spesa Altri
-                    capacitaAvversariMax: 1.5,             // D: clamp superiore del fattore capacità di spesa Altri
-                    gammaMomentum: 0.25,                   // ③ peso dell'accelerazione/decelerazione recente
-                    n0Momentum: 8,                          // A/C: n. transazioni nel ruolo per confidenza piena (era 5)
-                    decadimentoMomentum: 0.85,               // C: fattore di decadimento per posizione (sostituisce finestraMomentum)
-                    deltaRank: 0.12,                          // ④ peso massimo del bonus di posizione in CAT
-                    sogliaCampioneRank: 6,                     // D: n. giocatori originari in CAT per confidenza piena
-                    epsilonSazieta: 0.15,                       // E: riduzione di MAX_D per ogni giocatore "oltre quota" nella CAT
-                    sazietaMin: 0.5,                             // E: pavimento del fattore di sazietà (mai sotto il 50%)
-                    epsilonSazietaGenerale: 0.2,                 // F: riduzione di MAX_D in base al solo riempimento fisico del ruolo (indipendente da CAT)
-                    sazietaGeneraleMin: 0.8,                      // F: pavimento della sazietà generale (mai sotto l'80%, effetto volutamente più soft di quella per-CAT)
-                    moltiplicatoreGiocatoreConteso: 1.15,          // G: maggiorazione manuale per un giocatore noto come molto conteso
-                    coefficienteIntervalloDispersione: 0.75,       // G: ampiezza dell'intervallo MAX_D derivata dalla dispersione osservata
-                    ampiezzaIntervalloMin: 0.08,                   // G: larghezza minima relativa dell'intervallo quando la dispersione è presente
-                    ampiezzaIntervalloMax: 0.35,                   // G: evita intervalli eccessivamente larghi per outlier isolati
-                    epsilonRiallocazioneCat: 0.35,                 // F: intensità massima della compressione per riallocazione CAT
-                    riallocazioneCatMin: 0.65,                     // F: pavimento del fattore di riallocazione (mai sotto il 65%)
-                    n0RiallocazioneCat: 4,                         // F: osservazioni reali minime (per lato del confronto) per confidenza piena
-                    sogliaScartoRiallocazione: 0.15,                // F: deadzone — scarto relativo minimo prima che il fattore reagisca
-                    limiteScartoRiallocazione: 1.0,                 // F: clamp dello scarto relativo (evita overreaction su outlier)
-                    correlazioneMercato: 0.45,                      // H: sconto peso per ogni ulteriore fattore ①③④ concorde (vedi combinaFattoriCorrelati)
-                    // I) Smorzamento pro-ciclico [nuovo]: senza questo fattore, tutte le correzioni
-                    // espansive (①②③④, moltoConteso) spingono il tetto verso l'alto quando il mercato
-                    // si scalda, indipendentemente da quanto margine reale resta all'utente — un
-                    // meccanismo potenzialmente auto-rinforzante (più il mercato paga, più il tetto
-                    // sale, più si è disposti a pagare) proprio nella fase in cui la disciplina di
-                    // spesa dovrebbe contare di più. Il vincolo di solvibilità (tettoSolvibilita) resta
-                    // un muro fisico invariato applicato per ultimo: questo fattore agisce PRIMA, per
-                    // rendere il motore progressivamente più prudente mentre ci si avvicina al muro,
-                    // invece di lasciarlo bloccare di scatto solo all'ultimo istante.
-                    sogliaMargineComodo: 0.4,                       // I: soglia di margine (slack/budgetResiduo) sopra la quale nessuno smorzamento si applica
-                    smorzamentoMargineMin: 0.6                      // I: frazione minima dell'ECCESSO espansivo trattenuta quando il margine tende a zero (mai sotto il 60%)
+                // ① Inflazione osservata
+                alphaInflazioneOsservata: 0.15,
+                n0Inflazione: 5,
+                limiteInflazioneOsservata: 0.35,
+            
+                // ② Pressione avversari
+                betaPressioneAvversari: 0.06,
+                n0PressioneAvversari: 4,
+                capacitaAvversariMin: 0.65,
+                capacitaAvversariMax: 1.30,
+            
+                // ③ Momentum
+                gammaMomentum: 0.18,
+                n0Momentum: 6,
+                decadimentoMomentum: 0.88,
+            
+                // ④ Rank nella CAT
+                deltaRank: 0.08,
+                sogliaCampioneRank: 7,
+            
+                // ⑤ Sazietà
+                epsilonSazieta: 0.12,
+                sazietaMin: 0.60,
+                epsilonSazietaGenerale: 0.15,
+                sazietaGeneraleMin: 0.85,
+            
+                // Giocatore molto conteso
+                moltiplicatoreGiocatoreConteso: 1.08,
+            
+                // Intervallo di incertezza
+                coefficienteIntervalloDispersione: 0.75,
+                ampiezzaIntervalloMin: 0.08,
+                ampiezzaIntervalloMax: 0.35,
+            
+                // ⑥ Riallocazione CAT
+                epsilonRiallocazioneCat: 0.25,
+                riallocazioneCatMin: 0.70,
+                n0RiallocazioneCat: 5,
+                sogliaScartoRiallocazione: 0.20,
+                limiteScartoRiallocazione: 0.75,
+            
+                // Correlazione tra segnali di mercato
+                correlazioneMercato: 0.35,
+            
+                // Smorzamento pro-ciclico
+                sogliaMargineComodo: 0.50,
+                smorzamentoMargineMin: 0.45
                 };
 
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
