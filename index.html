@@ -22,6 +22,22 @@
         .tab-squadra:hover { background: #463d24; }
         .tab-squadra.active { background: var(--squadra); color: #201a0c; }
 
+        /* Sotto-schede (dentro "Utente" e "Altri Giocatori") */
+        .subtabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 8px; overflow-x: auto; }
+        .subtab { padding: 7px 16px; cursor: pointer; border-radius: 6px; background: var(--surface-alt); font-weight: bold; font-size: 13px; white-space: nowrap; transition: 0.2s; color: var(--text-muted); }
+        .subtab:hover { background: #343a46; }
+        .subtab.active { background: var(--squadra); color: #201a0c; }
+
+        /* Pannello "Dati su Altri Giocatori" */
+        .altri-dati-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .altri-dati-card { padding: 15px; border-radius: 8px; background: var(--surface-alt); border: 1px solid var(--border); }
+        .altri-dati-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .altri-dati-head h3 { margin: 0; color: var(--squadra); font-size: 16px; }
+        .altri-dati-head .residuo { font-size: 13px; color: var(--text-muted); }
+        .altri-dati-head .residuo strong { color: var(--primary); }
+        .altri-dati-card table { margin-bottom: 0; font-size: 13px; }
+        .altri-dati-card th, .altri-dati-card td { padding: 6px 10px; }
+
         /* Pannello Mia Squadra */
         .squadra-ruolo { margin-bottom: 22px; }
         .squadra-ruolo-titolo { color: var(--squadra); margin: 0 0 8px 0; font-size: 16px; }
@@ -194,9 +210,9 @@
 
         <div class="tabs">
             <div v-for="tab in tabs" :key="tab" 
-                 :class="['tab', { active: currentTab === tab, 'tab-squadra': tab === 'Mia_Squadra' || tab === 'Altre_Squadre' || tab === 'Salvati' }]" 
+                 :class="['tab', { active: currentTab === tab, 'tab-squadra': tab === 'Utente' || tab === 'Altri_Giocatori' }]" 
                  @click="currentTab = tab">
-                {{ tab.replace('_', ' ') }}
+                {{ tab.replace(/_/g, ' ') }}
             </div>
         </div>
 
@@ -528,93 +544,132 @@
             <p class="note" v-else>Nessun avversario configurato.</p>
         </div>
 
-        <!-- MIA SQUADRA -->
-        <div v-if="currentTab === 'Mia_Squadra'" class="table-container squadra-panel">
-            <h2>Mia Squadra</h2>
-            <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo" class="squadra-ruolo">
-                <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
-                <table>
-                    <tr><th>Nome</th><th>Costo Reale</th></tr>
-                    <tr v-for="g in giocatoriMieiPerRuolo(ruolo)" :key="g.nome">
-                        <td>{{ g.nome }}</td>
-                        <td>{{ g.costo_reale || 0 }}</td>
-                    </tr>
-                    <tr v-for="(d, idx) in extraDettagli(ruolo)" :key="'extra-' + ruolo + '-' + idx">
-                        <td><input type="text" v-model="d.nome" placeholder="Nome (extra)" @input="salvaStato"></td>
-                        <td><input type="number" min="0" v-model.number="d.costo" @input="salvaStato"></td>
-                    </tr>
-                    <tr v-if="!giocatoriMieiPerRuolo(ruolo).length && !extraDettagli(ruolo).length">
-                        <td colspan="2" style="text-align:center; color: var(--text-muted);">Nessun giocatore</td>
-                    </tr>
-                </table>
+        <!-- UTENTE (Mia Squadra + Salvati) -->
+        <div v-if="currentTab === 'Utente'" class="table-container squadra-panel">
+            <div class="subtabs">
+                <div :class="['subtab', { active: subTabUtente === 'Mia_Squadra' }]" @click="subTabUtente = 'Mia_Squadra'">Mia Squadra</div>
+                <div :class="['subtab', { active: subTabUtente === 'Salvati' }]" @click="subTabUtente = 'Salvati'">Salvati</div>
+            </div>
+
+            <!-- MIA SQUADRA -->
+            <div v-if="subTabUtente === 'Mia_Squadra'">
+                <h2>Mia Squadra</h2>
+                <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="ruolo" class="squadra-ruolo">
+                    <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
+                    <table>
+                        <tr><th>Nome</th><th>Costo Reale</th></tr>
+                        <tr v-for="g in giocatoriMieiPerRuolo(ruolo)" :key="g.nome">
+                            <td>{{ g.nome }}</td>
+                            <td>{{ g.costo_reale || 0 }}</td>
+                        </tr>
+                        <tr v-for="(d, idx) in extraDettagli(ruolo)" :key="'extra-' + ruolo + '-' + idx">
+                            <td><input type="text" v-model="d.nome" placeholder="Nome (extra)" @input="salvaStato"></td>
+                            <td><input type="number" min="0" v-model.number="d.costo" @input="salvaStato"></td>
+                        </tr>
+                        <tr v-if="!giocatoriMieiPerRuolo(ruolo).length && !extraDettagli(ruolo).length">
+                            <td colspan="2" style="text-align:center; color: var(--text-muted);">Nessun giocatore</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SALVATI (PREFERITI) -->
+            <div v-if="subTabUtente === 'Salvati'">
+                <h2>Giocatori Salvati</h2>
+                <p class="note">Giocatori contrassegnati con ★ nelle schede P/D/C/A, raggruppati per ruolo. Clicca sulla stella per rimuovere un giocatore dai salvati.</p>
+                <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'salvati-' + ruolo" class="squadra-ruolo">
+                    <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
+                    <table>
+                        <tr><th class="col-star">★</th><th>Nome</th><th>MAX_D</th><th class="col-conteso">CONT.</th><th>STATO</th><th class="col-note">NOTE</th></tr>
+                        <tr v-for="g in giocatoriPreferitiPerRuolo(ruolo)" :key="g.nome" :class="'stato-' + g.stato">
+                            <td class="col-star">
+                                <button type="button" class="star-btn active" @click="togglePreferito(g)" title="Rimuovi dai preferiti">★</button>
+                            </td>
+                            <td>{{ g.nome }}</td>
+                            <td class="col-conteso">
+                                <span v-if="g.moltoConteso" class="badge badge-warn" title="Giocatore segnato manualmente come molto conteso">🔥</span>
+                            </td>
+                            <td>
+                                <strong>{{ calcolaMaxD(g) }}</strong>
+                                <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA'" class="badge badge-conf"
+                                      title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
+                                    {{ calcolaConfidenzaMaxD(g) }}%
+                                </span>
+                                <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivoPerRuolo(g.ruolo)" class="badge badge-cap-avviso"
+                                      :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), il motore usa la stima aggregata sugli avversari, meno precisa.'">
+                                    ⚠ cap agg.
+                                </span>
+                            </td>
+                            <td>{{ g.stato === 'L' ? 'Libero' : (g.stato === 'M' ? 'Mio' : nomeAvversario(g.avversarioId)) }}</td>
+                            <td class="col-note">
+                                <button type="button" class="note-btn" :class="{ 'has-note': (g.note || '').trim() }" @click="apriNote(g)" :title="(g.note || '').trim() ? 'Apri e modifica le note' : 'Aggiungi note'">📝</button>
+                            </td>
+                        </tr>
+                        <tr v-if="!giocatoriPreferitiPerRuolo(ruolo).length">
+                            <td colspan="6" style="text-align:center; color: var(--text-muted);">Nessun giocatore salvato</td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- ALTRE SQUADRE -->
-        <div v-if="currentTab === 'Altre_Squadre'" class="table-container squadra-panel">
-            <h2>Altre Squadre</h2>
-            <p class="note">Ogni avversario viene mostrato separatamente. Per ciascun ruolo sono riportati i giocatori effettivamente assegnati a quel partecipante e il relativo costo reale.</p>
-            <div v-if="avversari.length">
-                <div v-for="avv in avversari" :key="'squadra-avv-' + avv.id" class="avversari-team-panel">
-                    <div class="avversari-team-head">
-                        <h3>{{ avv.nome || avv.id }}</h3>
-                        <span class="avversari-team-meta">Residuo {{ round2(statAvversario(avv.id).budgetResiduo) }} · {{ statAvversario(avv.id).slotOccupati }}/{{ statAvversario(avv.id).slotTotali }} slot</span>
+        <!-- ALTRI GIOCATORI (Altre Squadre + Dati su Altri Giocatori) -->
+        <div v-if="currentTab === 'Altri_Giocatori'" class="table-container squadra-panel">
+            <div class="subtabs">
+                <div :class="['subtab', { active: subTabAltriGiocatori === 'Altre_Squadre' }]" @click="subTabAltriGiocatori = 'Altre_Squadre'">Altre Squadre</div>
+                <div :class="['subtab', { active: subTabAltriGiocatori === 'Dati_Altri_Giocatori' }]" @click="subTabAltriGiocatori = 'Dati_Altri_Giocatori'">Dati su Altri Giocatori</div>
+            </div>
+
+            <!-- ALTRE SQUADRE -->
+            <div v-if="subTabAltriGiocatori === 'Altre_Squadre'">
+                <h2>Altre Squadre</h2>
+                <p class="note">Ogni avversario viene mostrato separatamente. Per ciascun ruolo sono riportati i giocatori effettivamente assegnati a quel partecipante e il relativo costo reale.</p>
+                <div v-if="avversari.length">
+                    <div v-for="avv in avversari" :key="'squadra-avv-' + avv.id" class="avversari-team-panel">
+                        <div class="avversari-team-head">
+                            <h3>{{ avv.nome || avv.id }}</h3>
+                            <span class="avversari-team-meta">Residuo {{ round2(statAvversario(avv.id).budgetResiduo) }} · {{ statAvversario(avv.id).slotOccupati }}/{{ statAvversario(avv.id).slotTotali }} slot</span>
+                        </div>
+                        <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="avv.id + '-ruolo-' + ruolo" class="squadra-ruolo">
+                            <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
+                            <table>
+                                <tr><th>Nome</th><th>Costo Reale</th></tr>
+                                <tr v-for="g in giocatoriAvversarioPerRuolo(avv.id, ruolo)" :key="avv.id + '-' + g.nome">
+                                    <td>{{ g.nome }}</td>
+                                    <td>{{ g.costo_reale || 0 }}</td>
+                                </tr>
+                                <tr v-if="!giocatoriAvversarioPerRuolo(avv.id, ruolo).length">
+                                    <td colspan="2" style="text-align:center; color: var(--text-muted);">Nessun giocatore</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="avversari-team-total">Spesa giocatori: <strong>{{ round2(statAvversario(avv.id).spesaGiocatori) }}</strong> · Extra: <strong>{{ round2(statAvversario(avv.id).extraCrediti) }}</strong> · Totale: <strong>{{ round2(statAvversario(avv.id).spesa) }}</strong></div>
                     </div>
-                    <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="avv.id + '-ruolo-' + ruolo" class="squadra-ruolo">
-                        <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
+                </div>
+                <p class="note" v-else>Nessun avversario configurato.</p>
+            </div>
+
+            <!-- DATI SU ALTRI GIOCATORI -->
+            <div v-if="subTabAltriGiocatori === 'Dati_Altri_Giocatori'">
+                <h2>Dati su Altri Giocatori</h2>
+                <p class="note">Per ciascun partecipante: crediti rimasti nel complesso e, per ogni ruolo, slot occupati sul totale e somma dei crediti spesi.</p>
+                <div v-if="avversari.length" class="altri-dati-grid">
+                    <div v-for="avv in avversari" :key="'dati-avv-' + avv.id" class="altri-dati-card">
+                        <div class="altri-dati-head">
+                            <h3>{{ avv.nome || avv.id }}</h3>
+                            <span class="residuo">Crediti rimasti: <strong :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(statAvversario(avv.id).budgetResiduo) }}</strong></span>
+                        </div>
                         <table>
-                            <tr><th>Nome</th><th>Costo Reale</th></tr>
-                            <tr v-for="g in giocatoriAvversarioPerRuolo(avv.id, ruolo)" :key="avv.id + '-' + g.nome">
-                                <td>{{ g.nome }}</td>
-                                <td>{{ g.costo_reale || 0 }}</td>
-                            </tr>
-                            <tr v-if="!giocatoriAvversarioPerRuolo(avv.id, ruolo).length">
-                                <td colspan="2" style="text-align:center; color: var(--text-muted);">Nessun giocatore</td>
+                            <tr><th>Ruolo</th><th>Slot (occ/tot)</th><th>Crediti spesi</th></tr>
+                            <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="avv.id + '-dati-' + ruolo">
+                                <td>{{ ruolo }}</td>
+                                <td>{{ statAvversarioRuolo(avv.id, ruolo).slotOccupati }} / {{ statAvversarioRuolo(avv.id, ruolo).slotTotali }}</td>
+                                <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(statAvversarioRuolo(avv.id, ruolo).creditiSpesi) }}</td>
                             </tr>
                         </table>
                     </div>
-                    <div class="avversari-team-total">Spesa giocatori: <strong>{{ round2(statAvversario(avv.id).spesaGiocatori) }}</strong> · Extra: <strong>{{ round2(statAvversario(avv.id).extraCrediti) }}</strong> · Totale: <strong>{{ round2(statAvversario(avv.id).spesa) }}</strong></div>
                 </div>
-            </div>
-            <p class="note" v-else>Nessun avversario configurato.</p>
-        </div>
-
-        <!-- SALVATI (PREFERITI) -->
-        <div v-if="currentTab === 'Salvati'" class="table-container squadra-panel">
-            <h2>Giocatori Salvati</h2>
-            <p class="note">Giocatori contrassegnati con ★ nelle schede P/D/C/A, raggruppati per ruolo. Clicca sulla stella per rimuovere un giocatore dai salvati.</p>
-            <div v-for="ruolo in ['P', 'D', 'C', 'A']" :key="'salvati-' + ruolo" class="squadra-ruolo">
-                <h3 class="squadra-ruolo-titolo">{{ ruolo }}</h3>
-                <table>
-                    <tr><th class="col-star">★</th><th>Nome</th><th>MAX_D</th><th class="col-conteso">CONT.</th><th>STATO</th><th class="col-note">NOTE</th></tr>
-                    <tr v-for="g in giocatoriPreferitiPerRuolo(ruolo)" :key="g.nome" :class="'stato-' + g.stato">
-                        <td class="col-star">
-                            <button type="button" class="star-btn active" @click="togglePreferito(g)" title="Rimuovi dai preferiti">★</button>
-                        </td>
-                        <td>{{ g.nome }}</td>
-                        <td class="col-conteso">
-                            <span v-if="g.moltoConteso" class="badge badge-warn" title="Giocatore segnato manualmente come molto conteso">🔥</span>
-                        </td>
-                        <td>
-                            <strong>{{ calcolaMaxD(g) }}</strong>
-                            <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA'" class="badge badge-conf"
-                                  title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
-                                {{ calcolaConfidenzaMaxD(g) }}%
-                            </span>
-                            <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivoPerRuolo(g.ruolo)" class="badge badge-cap-avviso"
-                                  :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), il motore usa la stima aggregata sugli avversari, meno precisa.'">
-                                ⚠ cap agg.
-                            </span>
-                        </td>
-                        <td>{{ g.stato === 'L' ? 'Libero' : (g.stato === 'M' ? 'Mio' : nomeAvversario(g.avversarioId)) }}</td>
-                        <td class="col-note">
-                            <button type="button" class="note-btn" :class="{ 'has-note': (g.note || '').trim() }" @click="apriNote(g)" :title="(g.note || '').trim() ? 'Apri e modifica le note' : 'Aggiungi note'">📝</button>
-                        </td>
-                    </tr>
-                    <tr v-if="!giocatoriPreferitiPerRuolo(ruolo).length">
-                        <td colspan="6" style="text-align:center; color: var(--text-muted);">Nessun giocatore salvato</td>
-                    </tr>
-                </table>
+                <p class="note" v-else>Nessun avversario configurato.</p>
             </div>
         </div>
         </div>
@@ -670,8 +725,12 @@
 
         createApp({
             setup() {
-                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra', 'Altre_Squadre', 'Impostazioni_Lega', 'Salvati'];
+                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Impostazioni_Lega', 'Utente', 'Altri_Giocatori'];
                 const currentTab = ref('Control_Panel');
+                // Sotto-schede delle tab "Utente" e "Altri Giocatori" (punti 1 e 2 richiesti):
+                // stato puramente di navigazione UI, non incide su nessun calcolo.
+                const subTabUtente = ref('Mia_Squadra');
+                const subTabAltriGiocatori = ref('Altre_Squadre');
                 const datiSensibiliNascosti = ref(false);
                 
                 // Stato Reattivo
@@ -1087,6 +1146,19 @@
                         spesa, spesaGiocatori, extraSlot, extraCrediti, slotTotali, slotOccupati,
                         slotLiberi: Math.max(0, slotTotali - slotOccupati)
                     };
+                };
+
+                // Riepilogo per singolo ruolo di un avversario (slot occupati/totali e crediti
+                // spesi in quel ruolo), usato dalla scheda "Dati su Altri Giocatori". Pura
+                // aggregazione di dati già calcolati altrove (giocatori assegnati + extra
+                // manuali + slot da config), non introduce nuova logica di calcolo.
+                const statAvversarioRuolo = (avversarioId, ruolo) => {
+                    const acquisti = giocatoriAvversarioPerRuolo(avversarioId, ruolo);
+                    const extraR = extraAvversarioRuolo(avversarioId, ruolo);
+                    const slotTotali = config.value.slot_ruoli[ruolo] || 0;
+                    const slotOccupati = acquisti.length + Number(extraR.slot || 0);
+                    const creditiSpesi = acquisti.reduce((s, g) => s + (g.costo_reale || 0), 0) + Number(extraR.crediti || 0);
+                    return { slotTotali, slotOccupati, creditiSpesi };
                 };
 
                 const slotAvversarioLiberi = (avversarioId, ruolo) => {
@@ -2453,13 +2525,13 @@
                 const formatPct = (v) => (v * 100).toFixed(1) + '%';
 
                 return { 
-                    tabs, currentTab, datiSensibiliNascosti, config, extra, giocatoriFiltered, metrics,
+                    tabs, currentTab, subTabUtente, subTabAltriGiocatori, datiSensibiliNascosti, config, extra, giocatoriFiltered, metrics,
                     creditiSpesiTotali, budgetResiduo, percBudgetSpeso, slotLiberiTotali, slotTotali, slotOccupati,
                     statoAsta, costoAttesoRimanente, margineVsAtteso, giocatoriCompratiTotali, prezzoMedioReale,
                     riservaOccResidua, riservaOccConsumata,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
-                    avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
+                    avversari, nomeAvversario, statAvversario, statAvversarioRuolo, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, datiRiga, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
