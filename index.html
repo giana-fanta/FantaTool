@@ -72,7 +72,9 @@
         .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; }
         .btn-danger { background: var(--danger); color: #1d1114; }
         .btn-success { background: var(--success); color: #0f1f18; }
-        .toolbar { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .toolbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .toolbar-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; }
+        .toolbar-group { display: flex; flex-direction: column; gap: 8px; }
         
         /* Dashboard Cards */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
@@ -203,15 +205,25 @@
         <div class="container" :class="{ 'app-blurred': locked || !accessGranted }">
         <div class="toolbar">
             <h1>Gestione Asta Live</h1>
-            <div>
-                <button class="btn btn-dark" @click="attivaLock">🔒 Lock</button>
-                <button class="btn btn-secondary" @click="datiSensibiliNascosti = !datiSensibiliNascosti" style="margin-left:10px;">{{ datiSensibiliNascosti ? '👁 Show' : '🙈 Hide' }}</button>
-                <button class="btn btn-outline" v-if="passwordImpostata" @click="cambiaPassword" style="margin-left:10px;">Cambia Password</button>
-                <button class="btn btn-success" @click="esportaDati" style="margin-left:10px;">↓ Esporta Backup</button>
-                <button class="btn btn-success" @click="esportaSquadre" style="margin-left:10px;">↓ Esporta Squadre</button>
-                <button class="btn btn-success" @click="triggerImportBackup" style="margin-left:10px;">↑ Importa Backup</button>
-                <input type="file" id="inputBackup" accept="application/json,.json" @change="importaDati" style="display:none">
-                <button class="btn btn-danger" @click="resetDati" style="margin-left:10px;">Reset Totale</button>
+            <div class="toolbar-actions">
+                <div class="toolbar-group">
+                    <button class="btn btn-dark" @click="attivaLock">🔒 Lock</button>
+                    <button class="btn btn-outline" v-if="passwordImpostata" @click="cambiaPassword">Cambia Password</button>
+                </div>
+                <div class="toolbar-group">
+                    <button class="btn btn-secondary" @click="datiSensibiliNascosti = !datiSensibiliNascosti">{{ datiSensibiliNascosti ? '👁 Show' : '🙈 Hide' }}</button>
+                </div>
+                <div class="toolbar-group">
+                    <button class="btn btn-success" @click="triggerImportBackup">↑ Importa Backup</button>
+                    <button class="btn btn-success" @click="esportaDati">↓ Esporta Backup</button>
+                </div>
+                <div class="toolbar-group">
+                    <button class="btn btn-success" @click="esportaSquadre">↓ Esporta Squadre</button>
+                    <input type="file" id="inputBackup" accept="application/json,.json" @change="importaDati" style="display:none">
+                </div>
+                <div class="toolbar-group">
+                    <button class="btn btn-danger" @click="resetDati">Reset Totale</button>
+                </div>
             </div>
         </div>
 
