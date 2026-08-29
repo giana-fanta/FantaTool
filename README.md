@@ -133,7 +133,7 @@ La scheda **Extra** serve per registrare elementi che consumano slot o generano 
 
 L’applicazione prevede Extra sia per la propria squadra sia, in modo separato, per gli avversari.
 
-Esempi concettuali di Extra gestiti dal tool sono multe, scambi o compensazioni.
+Esempi concettuali di Extra gestiti dal tool sono giocatori non presenti a listone (ultimi acquisti, riserve,...).
 
 ---
 
