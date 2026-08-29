@@ -208,6 +208,7 @@
                 <button class="btn btn-secondary" @click="datiSensibiliNascosti = !datiSensibiliNascosti" style="margin-left:10px;">{{ datiSensibiliNascosti ? '👁 Show' : '🙈 Hide' }}</button>
                 <button class="btn btn-outline" v-if="passwordImpostata" @click="cambiaPassword" style="margin-left:10px;">Cambia Password</button>
                 <button class="btn btn-success" @click="esportaDati" style="margin-left:10px;">↓ Esporta Backup</button>
+                <button class="btn btn-success" @click="esportaSquadre" style="margin-left:10px;">↓ Esporta Squadre</button>
                 <button class="btn btn-success" @click="triggerImportBackup" style="margin-left:10px;">↑ Importa Backup</button>
                 <input type="file" id="inputBackup" accept="application/json,.json" @change="importaDati" style="display:none">
                 <button class="btn btn-danger" @click="resetDati" style="margin-left:10px;">Reset Totale</button>
@@ -2480,7 +2481,33 @@
 
                 // --- UI INTERACTIONS ---
 
-                const giocatoriFiltered = computed(() => {
+                // Elenco delle sole voci (filtro su ruolo/ricerca/cat/stato) che risultano visibili
+                // in questo momento, senza applicare l'ordinamento: serve solo a rilevare quando
+                // l'INSIEME dei giocatori mostrati cambia (es. un giocatore esce dai risultati perché
+                // il filtro STATO attivo non lo include più). Il valore è una stringa (nomi ordinati e
+                // uniti): finché l'insieme resta lo stesso, la stringa non cambia, anche se cambiano
+                // altri valori (COSTO_REALE, o uno STATO che resta comunque incluso nel filtro).
+                const chiaviVisibili = computed(() => {
+                    let list = giocatori.value.filter(g => g.ruolo === currentTab.value);
+                    const search = filtri.value.search.trim().toLowerCase();
+                    if (search) list = list.filter(g => g.nome.toLowerCase().includes(search));
+                    list = list.filter(g => filtri.value.cat.includes(g.cat));
+                    list = list.filter(g => filtri.value.stato.includes(g.stato));
+                    return list.map(g => g.nome).sort().join('|');
+                });
+
+                // Ordine di visualizzazione "congelato": un elenco di NOME che rappresenta l'ordine
+                // corrente della tabella. Viene ricalcolato per intero SOLO quando cambia qualcosa che
+                // deve legittimamente riordinare la lista: cambio scheda/ruolo, un click su un'intestazione
+                // ordinabile (ordinamento), un filtro (filtri), l'insieme dei giocatori visibili
+                // (chiaviVisibili) o un caricamento/importazione dati (giocatori riassegnato per intero).
+                // Modificare STATO o COSTO_REALE di una riga già presente in tabella NON rientra in
+                // nessuno di questi casi (a meno che il filtro STATO non la escluda), quindi la riga
+                // resta ferma nella sua posizione: il valore mostrato si aggiorna comunque, perché
+                // giocatoriFiltered restituisce sempre gli oggetti reattivi originali.
+                const ordineVisualizzazione = ref([]);
+
+                const calcolaOrdineVisualizzazione = () => {
                     let list = giocatori.value.filter(g => g.ruolo === currentTab.value);
 
                     const search = filtri.value.search.trim().toLowerCase();
@@ -2497,7 +2524,18 @@
                         else cmp = va - vb;
                         return direzione === 'asc' ? cmp : -cmp;
                     });
-                    return list;
+                    ordineVisualizzazione.value = list.map(g => g.nome);
+                };
+
+                watch(currentTab, calcolaOrdineVisualizzazione, { immediate: true });
+                watch(ordinamento, calcolaOrdineVisualizzazione, { deep: true });
+                watch(filtri, calcolaOrdineVisualizzazione, { deep: true });
+                watch(chiaviVisibili, calcolaOrdineVisualizzazione);
+                watch(() => giocatori.value, calcolaOrdineVisualizzazione);
+
+                const giocatoriFiltered = computed(() => {
+                    const mappa = new Map(giocatori.value.map(g => [g.nome, g]));
+                    return ordineVisualizzazione.value.map(nome => mappa.get(nome)).filter(Boolean);
                 });
 
                 // [Ottimizzazione performance] La tabella richiamava direttamente nel template, per
@@ -2581,6 +2619,64 @@
                     downloadAnchorNode.remove();
                 };
 
+                // Esporta, in un semplice file di testo, tutte le squadre della lega (la propria
+                // e quelle di ogni avversario) con, per ciascun calciatore acquistato, nome, ruolo
+                // e costo reale pagato, raggruppati e ordinati per ruolo. Solo lettura dei dati
+                // esistenti: non modifica in alcun modo logiche o valori dell'applicazione.
+                const RUOLI_ORDINE_EXPORT = ['P', 'D', 'C', 'A'];
+                const RUOLI_LABEL_EXPORT = { P: 'PORTIERI', D: 'DIFENSORI', C: 'CENTROCAMPISTI', A: 'ATTACCANTI' };
+
+                const esportaSquadre = () => {
+                    const righe = [];
+                    const separatore = '='.repeat(50);
+
+                    const aggiungiSquadra = (titolo, elenco) => {
+                        righe.push(separatore);
+                        righe.push(titolo);
+                        righe.push(separatore);
+                        let totale = 0;
+                        RUOLI_ORDINE_EXPORT.forEach(ruolo => {
+                            const giocatoriRuolo = elenco
+                                .filter(g => g.ruolo === ruolo)
+                                .slice()
+                                .sort((a, b) => a.nome.localeCompare(b.nome));
+                            if (!giocatoriRuolo.length) return;
+                            righe.push('');
+                            righe.push(RUOLI_LABEL_EXPORT[ruolo] + ':');
+                            giocatoriRuolo.forEach(g => {
+                                const costo = Number(g.costo_reale) || 0;
+                                totale += costo;
+                                righe.push(`  - ${g.nome} (${g.ruolo}) - ${costo}`);
+                            });
+                        });
+                        righe.push('');
+                        righe.push(`Totale speso: ${totale}`);
+                        righe.push('');
+                        righe.push('');
+                    };
+
+                    aggiungiSquadra('LA TUA SQUADRA', giocatori.value.filter(g => g.stato === 'M'));
+
+                    avversari.value.forEach(avv => {
+                        const elenco = giocatori.value.filter(g => g.stato === 'A' && g.avversarioId === avv.id);
+                        aggiungiSquadra((avv.nome || avv.id).toUpperCase(), elenco);
+                    });
+
+                    const nonAssegnati = giocatori.value.filter(g => g.stato === 'A' && !g.avversarioId);
+                    if (nonAssegnati.length) {
+                        aggiungiSquadra('ACQUISTI NON ASSEGNATI A UN AVVERSARIO', nonAssegnati);
+                    }
+
+                    const contenuto = righe.join('\n');
+                    const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(contenuto);
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "squadre_asta.txt");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                };
+
                 const triggerImportBackup = () => {
                     document.getElementById('inputBackup').click();
                 };
@@ -2638,7 +2734,7 @@
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     extraRapido, aggiungiExtraRapido,
-                    calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, datiRiga, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
+                    calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, datiRiga, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, esportaSquadre, importaDati, triggerImportBackup, resetDati, round2, formatPct,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
                     accessGranted, inputAccesso, erroreAccesso, tentaAccesso
