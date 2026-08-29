@@ -62,7 +62,7 @@ Una volta effettuato correttamente, l’accesso viene ricordato da quel browser 
 
 ### Nota di sicurezza
 
-La schermata di accesso è un filtro applicativo e non deve essere considerata una misura di sicurezza forte. La parola chiave di accesso è incorporata nel codice dell’applicazione; pertanto il meccanismo serve soprattutto a impedire l’uso occasionale o accidentale dell’app, non a proteggere dati da chi abbia pieno accesso al codice sorgente o agli strumenti del browser.
+La schermata di accesso è un filtro applicativo e non deve essere considerata una misura di sicurezza forte; pertanto il meccanismo serve soprattutto a impedire l’uso occasionale o accidentale dell’app, non a proteggere dati da chi abbia pieno accesso al codice sorgente o agli strumenti del browser.
 
 ---
 
