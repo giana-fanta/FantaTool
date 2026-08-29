@@ -2248,6 +2248,60 @@
                     );
                 };
 
+                // [Punto 4] Scarsità di occasioni comparabili negli altri ruoli ancora scoperti.
+                // RAFFINAMENTO di smorzamentoGlobale (vedi calcolaMaxDNumerico più sotto), non un
+                // ottavo fattore moltiplicativo indipendente: smorzamentoGlobale risponde già alla
+                // domanda "quanto devo essere prudente adesso, visto cosa mi serve ancora per
+                // completare la rosa?" — oggi con un solo ingrediente (crediti residui, vedi
+                // margineSicurezza). Qui aggiungiamo un secondo ingrediente alla STESSA domanda:
+                // "quante buone occasioni restano negli ALTRI ruoli ancora scoperti?", perché un
+                // margine di crediti comodo non basta a rendere sicuro spendere qui, se nel
+                // frattempo un altro ruolo ancora vuoto sta esaurendo le sue occasioni migliori
+                // indipendentemente da quanti crediti hai.
+                //
+                // Riusa deliberatamente il framework di quota "di qualità" già esistente (H/I target,
+                // L/M domanda residua di ⑤ fattoreSazieta e ⑦ analisiRiallocazioneCat) invece di
+                // introdurre una nuova nozione di qualità: L/M sono già "quanti se ne devono ancora
+                // prendere in quel bucket per centrare la quota" — qui li confrontiamo con quanti
+                // giocatori "L" (liberi) restano davvero sul tabellone nello stesso bucket. Questo fa
+                // sì che l'urgenza cresca naturalmente con gli slot ancora da riempire (più slot
+                // mancano in un bucket, più L/M è alto, più severo il rapporto a parità di offerta),
+                // esattamente come richiesto, senza bisogno di un peso separato per gli slot mancanti.
+                //
+                // A differenza di ①②③④ (che stimano da osservazioni parziali e facoltative sui costi
+                // "Altri", per cui servono rampe di confidenza) qui il conteggio è un fatto esatto e
+                // sempre disponibile del tabellone (stato L/M/A dei giocatori): nessuna rampa di
+                // confidenza è necessaria.
+                const offertaResiduaBucket = (ruolo, bucket) =>
+                    giocatori.value.filter(x => x.ruolo === ruolo && RIALLOCAZIONE_CAT_PER_BUCKET[bucket].includes(x.cat) && x.stato === 'L').length;
+
+                // Rapporto offerta/domanda per un singolo bucket di quota: 1 = quota già centrata
+                // (domandaResidua <= 0, nessuna urgenza per costruzione) oppure offerta sufficiente;
+                // scende verso 0 quando i giocatori "L" rimasti nel bucket non bastano più a coprire
+                // gli slot ancora da riempire in quel bucket.
+                const rapportoOffertaDomandaBucket = (ruolo, bucket, domandaResidua) => {
+                    if (domandaResidua <= 0) return 1;
+                    return clampValore(offertaResiduaBucket(ruolo, bucket) / domandaResidua, 0, 1);
+                };
+
+                // Per ogni ruolo diverso da quello valutato e ancora con slot liberi, prende il bucket
+                // di quota (OccPun o Tit) più in sofferenza in quel ruolo, poi tra i ruoli prende il
+                // caso peggiore — non la media, per lo stesso motivo già seguito da
+                // capacitaSpesaAltriRuolo: un ruolo realmente a rischio non va annacquato da altri
+                // ruoli comodi. Esclude per costruzione g.ruolo (quello resta di competenza di
+                // fattoreSazietaGenerale, che guarda "dentro" invece che "fuori": nessuna sovrapposizione).
+                const scarsitaAltriRuoli = (ruoloEscluso) => {
+                    const daGuardare = ['P', 'D', 'C', 'A'].filter(r => r !== ruoloEscluso && metrics.value[r].slotLiberi > 0);
+                    if (!daGuardare.length) return 1; // nessun altro ruolo ancora scoperto: nessuna scarsità cross-ruolo da segnalare
+                    const valori = daGuardare.map(r => {
+                        const m = metrics.value[r];
+                        const occPun = rapportoOffertaDomandaBucket(r, 'OccPun', m.L);
+                        const tit = rapportoOffertaDomandaBucket(r, 'Tit', m.M);
+                        return Math.min(occPun, tit);
+                    });
+                    return Math.min(...valori);
+                };
+
                 // Intervallo di incertezza MAX_D: il centro resta il risultato del motore, mentre
                 // la dispersione osservata amplia il range. Non tenta di indovinare il secondo prezzo:
                 // rende esplicita l'incertezza dovuta alla domanda eterogenea.
@@ -2458,9 +2512,25 @@
                     const margineSicurezza = residuoPerMargine <= 0
                         ? 0
                         : clampValore((residuoPerMargine - Math.max(0, slotLiberiTotali.value - 1)) / residuoPerMargine, 0, 1);
-                    const smorzamentoGlobale = margineSicurezza >= FINETUNING.sogliaMargineComodo
+                    // [Punto 4] margineEffettivo: la prudenza deve rispondere al segnale più stretto tra
+                    // "quanti crediti restano oltre alla riserva fisica" (margineSicurezza, guarda ai
+                    // crediti) e "quante occasioni di qualità comparabile restano negli altri ruoli
+                    // ancora scoperti" (scarsitaAltriRuoli, guarda alle occasioni) — min(), non prodotto:
+                    // i due segnali tendono a peggiorare insieme man mano che l'asta avanza, quindi
+                    // moltiplicarli come correzioni indipendenti rischierebbe di sommare uno smorzamento
+                    // più-che-doppio proprio nella seconda metà dell'asta (lo stesso pattern di "segnali
+                    // concordi pesati a piena forza" già corretto altrove con lo sconto geometrico di
+                    // combinaFattoriCorrelati). Riusa la stessa rampa (sogliaMargineComodo/
+                    // smorzamentoMargineMin) già tarata su margineSicurezza invece di introdurre una
+                    // soglia dedicata: entrambi i segnali sono già normalizzati 0-1 con lo stesso
+                    // significato ("1 = nessun problema"), quindi restano coerenti sotto la stessa rampa.
+                    // Nota: a differenza di margineSicurezza (aggregato, uguale per ogni riga in un dato
+                    // istante), scarsitaAltriRuoli dipende da g.ruolo — da qui in poi smorzamentoGlobale
+                    // non è più "globale" in senso stretto, ma calcolato per-ruolo ad ogni chiamata.
+                    const margineEffettivo = Math.min(margineSicurezza, scarsitaAltriRuoli(g.ruolo));
+                    const smorzamentoGlobale = margineEffettivo >= FINETUNING.sogliaMargineComodo
                         ? 1
-                        : FINETUNING.smorzamentoMargineMin + (1 - FINETUNING.smorzamentoMargineMin) * (margineSicurezza / FINETUNING.sogliaMargineComodo);
+                        : FINETUNING.smorzamentoMargineMin + (1 - FINETUNING.smorzamentoMargineMin) * (margineEffettivo / FINETUNING.sogliaMargineComodo);
 
                     // [Nuovo] Segnale manuale di domanda molto contesa: non prova a stimare il rivale,
                     // ma incorpora l'informazione qualitativa che l'utente possiede e i dati aggregati
