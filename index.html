@@ -61,10 +61,15 @@
         /* Badge di confidenza accanto a MAX_D (punto 5): grigio neutro, non un giudizio di valore
            come badge-ok/badge-warn, solo un'indicazione di "quanto dato reale" c'è dietro il numero. */
         .badge-conf { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); font-weight: normal; margin-left: 5px; cursor: help; }
-        /* Badge "cap individuale non attivo" (punto 2 discusso): stessa tonalità di avviso di
-           badge-warn (rosso-ambra), ma classe propria per poterne differenziare lo stile in futuro
-           senza toccare badge-warn (usato anche per "giocatore molto conteso" con significato diverso). */
-        .badge-cap-avviso { background: #3d2730; color: #e8919e; border: 1px solid #5a3438; font-weight: normal; margin-left: 5px; cursor: help; }
+        /* Badge "dati avversari incompleti per il ruolo" (punto 2 discusso): segnala che uno o più
+           acquisti "Altri" in quel ruolo hanno un costo registrato ma nessun avversario assegnato,
+           quindi non entrano nella capacità di spesa per-manager e riducono la precisione di ②
+           (pressione avversari). Non esiste più, e non è mai esistito in questa versione del motore,
+           un "cap individuale sul rivale più forte" da disattivare: il nome della classe non deve
+           più suggerirlo. Stessa tonalità di avviso di badge-warn (rosso-ambra), ma classe propria
+           per poterne differenziare lo stile in futuro senza toccare badge-warn (usato anche per
+           "giocatore molto conteso" con significato diverso). */
+        .badge-dati-avviso { background: #3d2730; color: #e8919e; border: 1px solid #5a3438; font-weight: normal; margin-left: 5px; cursor: help; }
         
         /* Inputs & Buttons */
         select, input[type="number"], input[type="text"] { padding: 6px; border: 1px solid var(--border); border-radius: 4px; width: 100%; box-sizing: border-box; background: var(--surface-alt); color: #ced3dd; }
@@ -496,9 +501,13 @@
                               :title="datiRiga(g).tooltipIntervallo">
                             ≈ {{ datiRiga(g).intervallo.min }}–{{ datiRiga(g).intervallo.max }}
                         </span>
-                        <span v-if="datiRiga(g).mostraCapAvviso" class="badge badge-cap-avviso"
-                              :title="datiRiga(g).titleCapAvviso">
-                            ⚠ cap agg.
+                        <span v-if="datiRiga(g).mostraRivale" class="badge badge-conf"
+                              :title="datiRiga(g).titleRivale">
+                            🎯 ≤{{ datiRiga(g).rivale.bid }}
+                        </span>
+                        <span v-if="datiRiga(g).mostraAvvisoDati" class="badge badge-dati-avviso"
+                              :title="datiRiga(g).titleAvvisoDati">
+                            ⚠ dati avv. incompleti
                         </span>
                     </td>
                     <td v-if="!datiSensibiliNascosti" class="col-conteso">
@@ -634,9 +643,13 @@
                                       title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
                                     {{ calcolaConfidenzaMaxD(g) }}%
                                 </span>
-                                <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivoPerRuolo(g.ruolo)" class="badge badge-cap-avviso"
-                                      :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), il motore usa la stima aggregata sugli avversari, meno precisa.'">
-                                    ⚠ cap agg.
+                                <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && massimaConcorrenzaEconomica(g.ruolo).bid > 0" class="badge badge-conf"
+                                      :title="'Rivale più pericoloso per il ruolo ' + g.ruolo + ': ' + (nomeAvversario(massimaConcorrenzaEconomica(g.ruolo).id) || 'un avversario') + ' può arrivare fino a circa ' + massimaConcorrenzaEconomica(g.ruolo).bid + ' crediti (budget residuo stimato al netto della riserva fisica per gli altri suoi slot). Informazione descrittiva sulla competitività del duello: NON è un tetto sul MAX_D, che resta calcolato in base alla convenienza per te.'">
+                                    🎯 ≤{{ massimaConcorrenzaEconomica(g.ruolo).bid }}
+                                </span>
+                                <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && datiAvversariIncompletiPerRuolo(g.ruolo)" class="badge badge-dati-avviso"
+                                      :title="'Dati avversari incompleti per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), quegli acquisti non contribuiscono alla capacita di spesa stimata per singolo avversario, e la pressione avversari (fattore \u2461) e la stima del rivale piu pericoloso restano meno precise.'">
+                                    ⚠ dati avv. incompleti
                                 </span>
                             </td>
                             <td>{{ g.stato === 'L' ? 'Libero' : (g.stato === 'M' ? 'Mio' : nomeAvversario(g.avversarioId)) }}</td>
@@ -898,7 +911,9 @@
 
                     // ④ Sostituibilità: MAX_base resta la soglia neutrale. Il fattore misura quanto costa
                     // rinunciare al giocatore quando le alternative rimaste sono poche e/o sensibilmente
-                    // inferiori in termini di MAX_base.
+                    // inferiori in termini di MAX_base — e, simmetricamente [Punto 3a], quanto costa
+                    // POCO rinunciarvi quando la migliore alternativa disponibile ha invece un MAX_base
+                    // superiore: in quel caso il fattore scende sotto 1.
                     epsilonSostituibilita: 0.12,
                     pesoGapSostituibilita: 0.70,
                     pesoScarsitaSostituibilita: 0.30,
@@ -920,9 +935,13 @@
                     ampiezzaIntervalloMin: 0.08,
                     ampiezzaIntervalloMax: 0.35,
 
-                    // ⑦ Riallocazione CAT.
+                    // ⑦ Riallocazione CAT (contrattiva, esistente) e ⑦bis (espansiva, Punto 3b):
+                    // riallocazioneCatMax è il limite superiore simmetrico di riallocazioneCatMin,
+                    // usato solo dalla variante espansiva quando il bucket proprio è comparativamente
+                    // conveniente rispetto all'alternativo.
                     epsilonRiallocazioneCat: 0.25,
                     riallocazioneCatMin: 0.70,
+                    riallocazioneCatMax: 1.30,
                     n0RiallocazioneCat: 5,
                     sogliaScartoRiallocazione: 0.20,
                     limiteScartoRiallocazione: 0.75,
@@ -1241,6 +1260,10 @@
 
                 // Massimo esborso economicamente sostenibile per un avversario su un giocatore:
                 // budget residuo meno 1 credito per ogni altro slot ancora da completare.
+                // [Punto 1] Il dato più granulare che il tool possiede sul singolo avversario. NON entra
+                // nel motore MAX_D (nessun cap individuale, vedi commento in calcolaMaxDNumerico su ②
+                // pressioneAvversari) — alimenta solo il badge informativo "rivale più pericoloso"
+                // (datiRiga/massimaConcorrenzaEconomica più sotto), a schermo accanto a MAX_D.
                 const massimoBidAvversario = (avversarioId, ruolo) => {
                     if (!avversari.value.some(a => a.id === avversarioId)) return 0;
                     const s = statAvversario(avversarioId);
@@ -1250,6 +1273,9 @@
                     return Math.max(0, Math.floor(s.budgetResiduo - reserveDopoAcquisto));
                 };
 
+                // [Punto 1] Tra gli avversari con slot ancora liberi nel ruolo, quello col massimo
+                // esborso sostenibile: il "rivale più pericoloso" mostrato come informazione a schermo
+                // (badge neutro accanto a MAX_D), mai come input del suo calcolo.
                 const massimaConcorrenzaEconomica = (ruolo) => {
                     const bids = avversari.value
                         .map(a => ({ id: a.id, bid: massimoBidAvversario(a.id, ruolo) }))
@@ -1265,32 +1291,29 @@
                     giocatori.value.filter(g => g.stato === 'A' && !g.avversarioId && g.costo_reale > 0).length
                 );
 
-                // [Fix] Versione scoped-per-ruolo della stessa condizione. Il gate "cap individuale sul
-                // rivale più forte" (coperturaManager in calcolaMaxDNumerico, e il taglio finale
-                // "min(valore, concorrenza.bid + 1)" poco più sotto) deve dipendere solo dai dati
-                // mancanti nel ruolo del giocatore che si sta valutando: un acquisto "Altri" senza
-                // avversario assegnato in un ruolo non deve disattivare il cap su un ruolo diverso, dove
-                // il tracciamento per-avversario può essere completo. Se TUTTI gli acquisti non
-                // assegnati sono registrati in tempo reale (nessun ritardo nell'assegnazione), questa
-                // versione scoped restituisce sempre lo stesso valore (0) della versione globale per
-                // ogni ruolo, quindi il comportamento a dati completi resta identico: cambia solo la
-                // sensibilità del gate quando ESISTONO dati mancanti, restringendola al ruolo giusto.
+                // [Fix] Versione scoped-per-ruolo della stessa condizione: un acquisto "Altri" senza
+                // avversario assegnato in un ruolo non deve segnalare imprecisione anche su un ruolo
+                // diverso, dove il tracciamento per-avversario può essere completo. Se TUTTI gli
+                // acquisti non assegnati sono registrati in tempo reale (nessun ritardo
+                // nell'assegnazione), questa versione scoped restituisce sempre lo stesso valore (0)
+                // della versione globale per ogni ruolo: cambia solo la sensibilità quando ESISTONO
+                // dati mancanti, restringendola al ruolo giusto.
                 const acquistiAvversariNonAssegnatiPerRuolo = (ruolo) =>
                     giocatori.value.filter(g => g.ruolo === ruolo && g.stato === 'A' && !g.avversarioId && g.costo_reale > 0).length;
 
-                // [Badge "cap individuale non attivo"] Riusa la STESSA condizione già impiegata dal
-                // motore in due punti (coperturaManager in calcolaMaxDNumerico, e il cap
-                // "min(valore, concorrenza.bid + 1)" poco più sotto): finché anche un solo acquisto
-                // "Altri" nello STESSO ruolo del giocatore valutato ha un costo registrato ma nessun
-                // avversario assegnato, il motore non applica il tetto basato sul rivale più forte
-                // conosciuto e ricade sulla stima aggregata (vedi capacitaSpesaAltriRuolo). Prima di
-                // questo badge quell'informazione era visibile
-                // solo nel pannello "Impostazioni Lega" (sezione "Partecipanti avversari"), non nel momento —
-                // davanti al numero MAX_D di un giocatore specifico — in cui serve davvero. Nessuna
-                // nuova logica di calcolo: solo un'esposizione in UI di una condizione che il motore già
-                // usa internamente, scoped per ruolo come il motore stesso.
-                const capIndividualeNonAttivo = computed(() => acquistiAvversariNonAssegnati.value > 0);
-                const capIndividualeNonAttivoPerRuolo = (ruolo) => acquistiAvversariNonAssegnatiPerRuolo(ruolo) > 0;
+                // [Punto 2 — correzione] Il badge si chiamava "cap individuale non attivo" e descriveva
+                // un "tetto basato sul rivale più forte conosciuto" (coperturaManager / "min(valore,
+                // concorrenza.bid + 1)") che non esiste in NESSUN punto del codice eseguito di questo
+                // motore — sopravviveva solo nei commenti, non nella logica. Il nome è stato corretto
+                // per descrivere l'unico effetto reale e verificabile della mancata assegnazione:
+                // finché un acquisto "Altri" nello STESSO ruolo del giocatore valutato ha un costo
+                // registrato ma nessun avversario assegnato, quell'acquisto non entra in
+                // capacitaSpesaAltriRuolo (② pressione avversari) né nel calcolo del rivale più
+                // pericoloso (massimaConcorrenzaEconomica, punto 1) — entrambe le stime restano meno
+                // precise finché non lo assegni (scheda "Impostazioni Lega"). Nessuna nuova logica di
+                // calcolo: solo un nome e un testo che descrivono correttamente ciò che la funzione già
+                // faceva.
+                const datiAvversariIncompletiPerRuolo = (ruolo) => acquistiAvversariNonAssegnatiPerRuolo(ruolo) > 0;
 
                 const onNumeroAvversariChange = () => {
                     const vecchi = Array.isArray(config.value.avversari) ? config.value.avversari : [];
@@ -1981,9 +2004,20 @@
                     const maxBase = Math.max(Number(g.max) || 0, 1);
                     const maxAlternativa = Math.max(Number(miglioreAlternativa?.max) || 0, 0);
 
-                    // Gap di soglia neutrale: se l'alternativa ha un MAX_base quasi identico, perderla costa poco;
-                    // se è molto inferiore, il giocatore corrente è più difficile da sostituire.
-                    const gapQualita = clampValore((maxBase - maxAlternativa) / maxBase, 0, 1);
+                    // [Punto 3a] Gap di soglia neutrale, ora simmetrico: se l'alternativa ha un MAX_base
+                    // quasi identico, perderla costa poco (gap vicino a 0); se è molto inferiore, il
+                    // giocatore corrente è più difficile da sostituire (gap positivo, fino a +1). Se
+                    // invece la migliore alternativa disponibile ha un MAX_base PIÙ ALTO — è oggettivamente
+                    // la scelta più costosa/pregiata del bucket, quindi g è relativamente meno prezioso —
+                    // il gap scende sotto 0 (fino a -1): perdere g costa relativamente meno che perdere
+                    // quell'alternativa. Prima il clamp [0,1] impediva strutturalmente questo secondo caso,
+                    // trattando "alternativa migliore" e "alternativa quasi identica" allo stesso modo (gap=0).
+                    const gapQualita = clampValore((maxBase - maxAlternativa) / maxBase, -1, 1);
+                    // Scarsità: resta a senso unico per costruzione. "Poche alternative" è un segnale di
+                    // costo-opportunità reale (scarsita fino a 1); "molte alternative" (n >= n0) satura a 0,
+                    // cioè "nessuno sconto aggiuntivo da scarsità" — non un premio negativo per abbondanza,
+                    // perché l'abbondanza quantitativa non implica da sola che la MIGLIORE tra le alternative
+                    // sia anche qualitativamente superiore: quel segnale è già gapQualita, non va duplicato.
                     const scarsita = clampValore(
                         1 - Math.min(n, FINETUNING.n0AlternativeSostituibilita) / FINETUNING.n0AlternativeSostituibilita,
                         0, 1
@@ -1991,10 +2025,16 @@
                     // Con una sola alternativa non abbiamo ancora piena evidenza della struttura del mercato;
                     // da due osservazioni in poi la confidenza è piena per non introdurre una soglia artificiale.
                     const confidenza = clampValore(n / 2, 0, 1);
+                    // [Punto 3a] intensita ora preserva il segno di gapQualita invece di clamparlo a [0,1]:
+                    // un gapQualita negativo abbastanza forte da superare il contributo (sempre >=0) di
+                    // scarsita porta intensita sotto 0, e quindi fattore sotto 1 (vedi return). Il range
+                    // resta simmetrico e della stessa ampiezza massima di prima ([-1,1] invece di [0,1]),
+                    // quindi l'effetto massimo di ④ sul MAX_D resta ±epsilonSostituibilita*confidenza,
+                    // solo ora utilizzabile in entrambe le direzioni.
                     const intensita = clampValore(
                         FINETUNING.pesoGapSostituibilita * gapQualita +
                         FINETUNING.pesoScarsitaSostituibilita * scarsita,
-                        0, 1
+                        -1, 1
                     );
 
                     return {
@@ -2157,7 +2197,7 @@
                     // due lati, questa è genuina confidenza zero (non "non applicabile"), quindi va
                     // comunque contata nella media — a differenza dei due return null sopra.
                     if (!proprio.n || !proprio.costo || !alternativa || !alternativa.rapporto) {
-                        return { confidenza: 0, pesoOpportunita: 0, scarto: 0 };
+                        return { confidenza: 0, pesoOpportunita: 0, scarto: 0, scartoEspansivo: 0 };
                     }
                 
                     const rapportoProprio = proprio.costo / (PESO_INFLAZIONE[g.cat] || 1);
@@ -2165,16 +2205,46 @@
                     const confidenza = sogliaConfidenza(osservazioniEffettive, FINETUNING.n0RiallocazioneCat);
                     const pesoOpportunita = quotaResiduaAlternativa / (quotaResiduaAlternativa + quotaResiduaPropria);
                     const scartoGrezzo = (rapportoProprio - alternativa.rapporto) / alternativa.rapporto;
+                    // scarto (esistente, contrattivo): il bucket proprio costa relativamente PIÙ del
+                    // beneficio ottenibile nell'alternativo — comprime il cap.
                     const scarto = clampValore(scartoGrezzo - FINETUNING.sogliaScartoRiallocazione, 0, FINETUNING.limiteScartoRiallocazione);
+                    // [Punto 3b] scartoEspansivo: caso speculare, stessa soglia morta
+                    // (sogliaScartoRiallocazione) e lo stesso limite massimo, applicati allo scarto di
+                    // segno opposto — il bucket proprio è relativamente PIÙ conveniente del beneficio
+                    // ottenibile nell'alternativo. Non introduce nuove costanti: riusa le stesse di ⑦.
+                    const scartoEspansivo = clampValore(-scartoGrezzo - FINETUNING.sogliaScartoRiallocazione, 0, FINETUNING.limiteScartoRiallocazione);
                 
-                    return { confidenza, pesoOpportunita, scarto };
+                    return { confidenza, pesoOpportunita, scarto, scartoEspansivo };
                 };
+                // ⑦ Riallocazione CAT (contrattiva): comprime il cap PRIMA che la quota sia raggiunta,
+                // quando il costo reale osservato per completarla è sproporzionato rispetto al beneficio
+                // marginale ottenibile nell'altro bucket. Resta un fattore contrattivo puro, applicato
+                // fuori da fattoreEspansivoGrezzo (vedi calcolaMaxDNumerico), esattamente come prima:
+                // va già nella direzione prudente e non necessita di smorzamento pro-ciclico.
                 const fattoreRiallocazioneCat = (g, m) => {
                     const a = analisiRiallocazioneCat(g, m);
                     if (!a || a.confidenza <= 0 || a.scarto <= 0) return 1;
                     return clampValore(
                         1 - FINETUNING.epsilonRiallocazioneCat * a.confidenza * a.pesoOpportunita * a.scarto,
                         FINETUNING.riallocazioneCatMin, 1
+                    );
+                };
+                // [Punto 3b] ⑦bis Riallocazione CAT (espansiva): caso speculare del precedente — il
+                // bucket proprio è comparativamente CONVENIENTE rispetto all'alternativo. A differenza
+                // della variante contrattiva, questo è un segnale ESPANSIVO (alza il cap) e per questo
+                // NON va applicato fuori da fattoreEspansivoGrezzo come la variante contrattiva: un
+                // fattore che alza il cap deve restare soggetto allo stesso smorzamento pro-ciclico degli
+                // altri fattori espansivi (mercato, sostituibilità, categoria, conteso), altrimenti
+                // bypasserebbe proprio la garanzia di prudenza a margine budget stretto che il resto del
+                // motore rispetta — la stessa cautela generale richiesta esplicitamente per questa
+                // estensione. Viene quindi calcolato qui ma MOLTIPLICATO dentro fattoreEspansivoGrezzo,
+                // non nel blocco finale insieme alla variante contrattiva.
+                const fattoreRiallocazioneCatEspansivo = (g, m) => {
+                    const a = analisiRiallocazioneCat(g, m);
+                    if (!a || a.confidenza <= 0 || a.scartoEspansivo <= 0) return 1;
+                    return clampValore(
+                        1 + FINETUNING.epsilonRiallocazioneCat * a.confidenza * a.pesoOpportunita * a.scartoEspansivo,
+                        1, FINETUNING.riallocazioneCatMax
                     );
                 };
 
@@ -2360,6 +2430,11 @@
                     // scoperto dello stesso ruolo — segnalando implicitamente "meglio dirottare qui il
                     // budget residuo" invece di rincorrere il prezzo.
                     const riallocazioneCat = fattoreRiallocazioneCat(g, m);
+                    // ⑦bis Riallocazione CAT espansiva [Punto 3b]: caso speculare, calcolato qui ma
+                    // NON moltiplicato insieme a riallocazioneCat — entra invece in fattoreEspansivoGrezzo
+                    // poco più sotto, perché a differenza della variante contrattiva alza il cap ed è
+                    // quindi soggetto allo stesso smorzamento pro-ciclico degli altri fattori espansivi.
+                    const riallocazioneCatEspansivo = fattoreRiallocazioneCatEspansivo(g, m);
 
                     // H) ①(inflazioneIbrida), ②(fattorePressioneAvversari) e ③(momentum) sono le tre
                     // facce dello stesso fenomeno di mercato correlate tra loro (vedi commento sopra su
@@ -2395,15 +2470,19 @@
                     // crescente dei correttivi espansivi, non bypassarla.
                     const moltiplicatoreContesoGrezzo = g.moltoConteso ? FINETUNING.moltiplicatoreGiocatoreConteso : 1;
 
-                    // Il moltiplicatore "espansivo" complessivo (mercato + sostituibilità + categoria/pressione + conteso)
-                    // viene smorzato solo nella parte ECCEDENTE 1: se il prodotto grezzo è già ≤1 (il
-                    // mercato sta di fatto raffreddando quella CAT/ruolo più di quanto la contenda le
-                    // scarsità), non c'è nulla di "espansivo" da smorzare e il valore resta invariato —
-                    // lo smorzamento non deve mai trasformarsi in una compressione aggiuntiva non
-                    // richiesta. I fattori CONTRATTIVI (fattoreRuolo, sazieta, sazietaGenerale,
-                    // riallocazioneCat) restano fuori da questo calcolo e si applicano dopo, invariati:
-                    // vanno già nella direzione "giusta" (prudenza) e non necessitano di smorzamento.
-                    const fattoreEspansivoGrezzo = fattoreMercatoCombinato * sostituibilita * moltiplicatoreCategoria * moltiplicatoreContesoGrezzo;
+                    // Il moltiplicatore "espansivo" complessivo (mercato + sostituibilità + categoria/pressione
+                    // + conteso + riallocazione CAT espansiva [Punto 3b]) viene smorzato solo nella parte
+                    // ECCEDENTE 1: se il prodotto grezzo è già ≤1 (il mercato sta di fatto raffreddando
+                    // quella CAT/ruolo più di quanto la contenda le scarsità), non c'è nulla di "espansivo"
+                    // da smorzare e il valore resta invariato — lo smorzamento non deve mai trasformarsi in
+                    // una compressione aggiuntiva non richiesta. I fattori CONTRATTIVI PURI (fattoreRuolo,
+                    // sazieta, sazietaGenerale, riallocazioneCat) restano fuori da questo calcolo e si
+                    // applicano dopo, invariati: vanno già nella direzione "giusta" (prudenza) e non
+                    // necessitano di smorzamento. riallocazioneCatEspansivo, pur essendo la variante
+                    // speculare di riallocazioneCat, NON va nello stesso gruppo: essendo espansiva (alza il
+                    // cap) deve restare soggetta allo smorzamento come sostituibilita, non bypassarlo come
+                    // farebbe se fosse applicata insieme alla sua controparte contrattiva.
+                    const fattoreEspansivoGrezzo = fattoreMercatoCombinato * sostituibilita * moltiplicatoreCategoria * moltiplicatoreContesoGrezzo * riallocazioneCatEspansivo;
                     const fattoreEspansivo = fattoreEspansivoGrezzo > 1
                         ? 1 + (fattoreEspansivoGrezzo - 1) * smorzamentoGlobale
                         : fattoreEspansivoGrezzo;
@@ -2579,32 +2658,39 @@
 
                 // [Ottimizzazione performance] La tabella richiamava direttamente nel template, per
                 // ogni riga e ad ogni singolo render, calcolaMaxD/calcolaConfidenzaMaxD/intervalloMaxD/
-                // tooltipIntervalloMaxD/capIndividualeNonAttivoPerRuolo — funzioni pesanti (loop su
-                // giocatori/storicoAcquisti) MAI cachate, alcune richiamate più volte per la stessa
-                // riga (es. intervalloMaxD invocata sia nel v-if sia nel min/max sia dentro
-                // tooltipIntervalloMaxD). Questo computed richiama le STESSE funzioni, con le STESSE
-                // condizioni di visibilità già presenti nel template e nello stesso ordine, una sola
-                // volta per giocatore visibile: nessun valore mostrato cambia, cambia solo quante
-                // volte viene ricalcolato (una volta per cambiamento reale dei dati, non per ogni
-                // render). acquistiAvversariNonAssegnatiPerRuolo(ruolo) viene inoltre calcolata una
-                // sola volta per ruolo (tutte le righe della tabella condividono lo stesso ruolo,
-                // essendo giocatoriFiltered già filtrato su currentTab) invece che per ogni riga.
+                // tooltipIntervalloMaxD/datiAvversariIncompletiPerRuolo/massimaConcorrenzaEconomica —
+                // funzioni pesanti (loop su giocatori/storicoAcquisti) MAI cachate, alcune richiamate
+                // più volte per la stessa riga (es. intervalloMaxD invocata sia nel v-if sia nel
+                // min/max sia dentro tooltipIntervalloMaxD). Questo computed richiama le STESSE
+                // funzioni, con le STESSE condizioni di visibilità già presenti nel template e nello
+                // stesso ordine, una sola volta per giocatore visibile: nessun valore mostrato cambia,
+                // cambia solo quante volte viene ricalcolato (una volta per cambiamento reale dei dati,
+                // non per ogni render). datiAvversariIncompletiPerRuolo(ruolo) e
+                // massimaConcorrenzaEconomica(ruolo) [punto 1] dipendono solo dal ruolo, non dal
+                // singolo giocatore: vengono quindi calcolate una sola volta per ruolo (tutte le righe
+                // della tabella condividono lo stesso ruolo, essendo giocatoriFiltered già filtrato su
+                // currentTab) invece che per ogni riga.
                 const datiRigaCache = computed(() => {
                     const map = new Map();
-                    const capRuoloCache = new Map();
-                    const capInfoRuolo = (ruolo) => {
-                        if (!capRuoloCache.has(ruolo)) {
-                            const acquisti = acquistiAvversariNonAssegnatiPerRuolo(ruolo);
-                            capRuoloCache.set(ruolo, { acquisti, nonAttivo: acquisti > 0 });
+                    const infoRuoloCache = new Map();
+                    const infoRuolo = (ruolo) => {
+                        if (!infoRuoloCache.has(ruolo)) {
+                            const acquistiMancanti = acquistiAvversariNonAssegnatiPerRuolo(ruolo);
+                            infoRuoloCache.set(ruolo, {
+                                datiIncompleti: acquistiMancanti > 0,
+                                acquistiMancanti,
+                                rivale: massimaConcorrenzaEconomica(ruolo)
+                            });
                         }
-                        return capRuoloCache.get(ruolo);
+                        return infoRuoloCache.get(ruolo);
                     };
 
                     giocatoriFiltered.value.forEach(g => {
                         const mostraExtra = g.stato === 'L' && statoAsta.value !== 'NON INIZIATA';
                         const intervallo = mostraExtra ? intervalloMaxD(g) : null;
                         const mostraIntervallo = mostraExtra && intervallo.dispersione > 0;
-                        const capInfo = mostraExtra ? capInfoRuolo(g.ruolo) : null;
+                        const info = mostraExtra ? infoRuolo(g.ruolo) : null;
+                        const mostraRivale = mostraExtra && info.rivale.bid > 0;
                         map.set(g.nome, {
                             maxD: calcolaMaxD(g),
                             mostraExtra,
@@ -2612,9 +2698,14 @@
                             intervallo,
                             mostraIntervallo,
                             tooltipIntervallo: mostraIntervallo ? tooltipIntervalloMaxD(g) : '',
-                            mostraCapAvviso: mostraExtra && capInfo.nonAttivo,
-                            titleCapAvviso: (mostraExtra && capInfo.nonAttivo)
-                                ? ('Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + capInfo.acquisti + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), il motore usa la stima aggregata sugli avversari, meno precisa.')
+                            mostraRivale,
+                            rivale: mostraRivale ? info.rivale : null,
+                            titleRivale: mostraRivale
+                                ? ('Rivale più pericoloso per il ruolo ' + g.ruolo + ': ' + (nomeAvversario(info.rivale.id) || 'un avversario') + ' può arrivare fino a circa ' + info.rivale.bid + ' crediti (budget residuo stimato al netto della riserva fisica per gli altri suoi slot). Informazione descrittiva sulla competitività del duello: NON è un tetto sul MAX_D, che resta calcolato in base alla convenienza per te.')
+                                : '',
+                            mostraAvvisoDati: mostraExtra && info.datiIncompleti,
+                            titleAvvisoDati: (mostraExtra && info.datiIncompleti)
+                                ? ('Dati avversari incompleti per il ruolo ' + g.ruolo + ': ' + info.acquistiMancanti + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), quegli acquisti non contribuiscono alla capacita di spesa stimata per singolo avversario, e la pressione avversari (fattore \u2461) e la stima del rivale piu pericoloso restano meno precise.')
                                 : ''
                         });
                     });
@@ -2793,7 +2884,7 @@
                     riservaOccResidua, riservaOccConsumata,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
-                    avversari, nomeAvversario, statAvversario, statAvversarioRuolo, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
+                    avversari, nomeAvversario, statAvversario, statAvversarioRuolo, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, acquistiAvversariNonAssegnatiPerRuolo, datiAvversariIncompletiPerRuolo, massimaConcorrenzaEconomica, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, onSlotAvversarioExtraChange, extraAvversarioDettagli, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     extraRapido, aggiungiExtraRapido,
