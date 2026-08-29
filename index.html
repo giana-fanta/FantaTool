@@ -2033,48 +2033,37 @@
                 // potrebbero disallinearsi nel tempo. Ritorna null quando il fattore non è applicabile
                 // (Scm/Sca, quota propria già soddisfatta, bucket alternativo saturo o dati reali
                 // insufficienti su uno dei due lati).
-                const analisiRiallocazioneCat = (g, m) => {
+               const analisiRiallocazioneCat = (g, m) => {
                     const bucketProprio = RIALLOCAZIONE_BUCKET[g.cat];
-                    if (!bucketProprio) return null; // Scm/Sca: nessun target di qualità
-
+                    if (!bucketProprio) return null; // Scm/Sca: non applicabile per costruzione
+                
                     const bucketAlternativo = bucketProprio === 'OccPun' ? 'Tit' : 'OccPun';
                     const quotaResiduaPropria = bucketProprio === 'Tit' ? m.M : m.L;
                     const quotaResiduaAlternativa = bucketAlternativo === 'Tit' ? m.M : m.L;
-
-                    // Se la propria quota è già soddisfatta ci pensa già ⑤; se il bucket alternativo
-                    // è già saturo non esiste una vera alternativa dove dirottare in questo ruolo.
+                
+                    // Non applicabile per lo stato attuale della rosa (ci pensa già ⑤, o non c'è
+                    // un bucket alternativo dove dirottare) — non per mancanza di dati.
                     if (quotaResiduaPropria <= 0 || quotaResiduaAlternativa <= 0) return null;
-
+                
                     const proprio = costoOsservatoRealeCat(g.ruolo, g.cat);
-                    if (!proprio.n || !proprio.costo) return null; // nessun dato reale sulla propria CAT
-
                     const alternativa = migliorRapportoCBBucket(g.ruolo, bucketAlternativo);
-                    if (!alternativa || !alternativa.rapporto) return null; // nessun dato reale sull'alternativa
-
+                
+                    // Qui il fattore E' applicabile: se manca ancora l'osservazione reale su uno dei
+                    // due lati, questa è genuina confidenza zero (non "non applicabile"), quindi va
+                    // comunque contata nella media — a differenza dei due return null sopra.
+                    if (!proprio.n || !proprio.costo || !alternativa || !alternativa.rapporto) {
+                        return { confidenza: 0, pesoOpportunita: 0, scarto: 0 };
+                    }
+                
                     const rapportoProprio = proprio.costo / (PESO_INFLAZIONE[g.cat] || 1);
-
-                    // Confidenza: richiede un campione minimo affidabile su ENTRAMBI i lati del
-                    // confronto, altrimenti un singolo dato isolato potrebbe innescare una
-                    // compressione ingiustificata (stesso principio A/B/C/D già applicato a ①-④).
                     const osservazioniEffettive = Math.min(proprio.n, alternativa.n);
                     const confidenza = sogliaConfidenza(osservazioniEffettive, FINETUNING.n0RiallocazioneCat);
-
-                    // Peso di opportunità: il segnale vale di più quanto più ampio è, in proporzione,
-                    // il residuo ancora disponibile nel bucket alternativo rispetto al proprio —
-                    // dirottare budget su un bucket quasi esaurito porterebbe poco beneficio reale
-                    // anche se conveniente a parità di prezzo.
                     const pesoOpportunita = quotaResiduaAlternativa / (quotaResiduaAlternativa + quotaResiduaPropria);
-
-                    // Scarto relativo: positivo quando la propria CAT costa, per punto di beneficio,
-                    // più della migliore alternativa ancora scoperta. Una deadzone
-                    // (sogliaScartoRiallocazione) evita che uno scarto trascurabile inneschi già una
-                    // compressione — deve "peggiorare oltre una soglia", non a qualunque differenza.
                     const scartoGrezzo = (rapportoProprio - alternativa.rapporto) / alternativa.rapporto;
                     const scarto = clampValore(scartoGrezzo - FINETUNING.sogliaScartoRiallocazione, 0, FINETUNING.limiteScartoRiallocazione);
-
+                
                     return { confidenza, pesoOpportunita, scarto };
                 };
-
                 const fattoreRiallocazioneCat = (g, m) => {
                     const a = analisiRiallocazioneCat(g, m);
                     if (!a || a.confidenza <= 0 || a.scarto <= 0) return 1;
@@ -2393,9 +2382,9 @@
                     // alternativo saturo o dati reali insufficienti) — coerente con "0% = nessuna
                     // correzione attiva" per gli altri fattori in questa stessa media.
                     const analisiRialloc = analisiRiallocazioneCat(g, m);
-                    const confRiallocazione = analisiRialloc ? analisiRialloc.confidenza : 0;
-
-                    const media = (confInflazione + confPressione + confMomentum + confRank + confRiallocazione) / 5;
+                    const componenti = [confInflazione, confPressione, confMomentum, confRank];
+                    if (analisiRialloc) componenti.push(analisiRialloc.confidenza); // solo se applicabile
+                    const media = componenti.reduce((s, v) => s + v, 0) / componenti.length;
                     return Math.round(media * 100);
                 };
 
