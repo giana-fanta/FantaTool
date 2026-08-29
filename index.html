@@ -678,8 +678,31 @@
         <!-- ALTRI GIOCATORI (Altre Squadre + Dati su Altri Giocatori) -->
         <div v-if="currentTab === 'Altri_Giocatori'" class="table-container squadra-panel">
             <div class="subtabs">
-                <div :class="['subtab', { active: subTabAltriGiocatori === 'Altre_Squadre' }]" @click="subTabAltriGiocatori = 'Altre_Squadre'">Altre Squadre</div>
                 <div :class="['subtab', { active: subTabAltriGiocatori === 'Dati_Altri_Giocatori' }]" @click="subTabAltriGiocatori = 'Dati_Altri_Giocatori'">Dati su Altri Giocatori</div>
+                <div :class="['subtab', { active: subTabAltriGiocatori === 'Altre_Squadre' }]" @click="subTabAltriGiocatori = 'Altre_Squadre'">Altre Squadre</div>
+            </div>
+
+            <!-- DATI SU ALTRI GIOCATORI -->
+            <div v-if="subTabAltriGiocatori === 'Dati_Altri_Giocatori'">
+                <h2>Dati su Altri Giocatori</h2>
+                <p class="note">Per ciascun partecipante: crediti rimasti nel complesso e, per ogni ruolo, slot occupati sul totale e somma dei crediti spesi.</p>
+                <div v-if="avversari.length" class="altri-dati-grid">
+                    <div v-for="avv in avversari" :key="'dati-avv-' + avv.id" class="altri-dati-card">
+                        <div class="altri-dati-head">
+                            <h3>{{ avv.nome || avv.id }}</h3>
+                            <span class="residuo">Crediti rimasti: <strong :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(statAvversario(avv.id).budgetResiduo) }}</strong></span>
+                        </div>
+                        <table>
+                            <tr><th>Ruolo</th><th>Slot (occ/tot)</th><th>Crediti spesi</th></tr>
+                            <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="avv.id + '-dati-' + ruolo">
+                                <td>{{ ruolo }}</td>
+                                <td>{{ statAvversarioRuolo(avv.id, ruolo).slotOccupati }} / {{ statAvversarioRuolo(avv.id, ruolo).slotTotali }}</td>
+                                <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(statAvversarioRuolo(avv.id, ruolo).creditiSpesi) }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                <p class="note" v-else>Nessun avversario configurato.</p>
             </div>
 
             <!-- ALTRE SQUADRE -->
@@ -710,29 +733,6 @@
                             </table>
                         </div>
                         <div class="avversari-team-total">Spesa giocatori: <strong>{{ round2(statAvversario(avv.id).spesaGiocatori) }}</strong> · Extra: <strong>{{ round2(statAvversario(avv.id).extraCrediti) }}</strong> · Totale: <strong>{{ round2(statAvversario(avv.id).spesa) }}</strong></div>
-                    </div>
-                </div>
-                <p class="note" v-else>Nessun avversario configurato.</p>
-            </div>
-
-            <!-- DATI SU ALTRI GIOCATORI -->
-            <div v-if="subTabAltriGiocatori === 'Dati_Altri_Giocatori'">
-                <h2>Dati su Altri Giocatori</h2>
-                <p class="note">Per ciascun partecipante: crediti rimasti nel complesso e, per ogni ruolo, slot occupati sul totale e somma dei crediti spesi.</p>
-                <div v-if="avversari.length" class="altri-dati-grid">
-                    <div v-for="avv in avversari" :key="'dati-avv-' + avv.id" class="altri-dati-card">
-                        <div class="altri-dati-head">
-                            <h3>{{ avv.nome || avv.id }}</h3>
-                            <span class="residuo">Crediti rimasti: <strong :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(statAvversario(avv.id).budgetResiduo) }}</strong></span>
-                        </div>
-                        <table>
-                            <tr><th>Ruolo</th><th>Slot (occ/tot)</th><th>Crediti spesi</th></tr>
-                            <tr v-for="ruolo in ['P', 'D', 'C', 'A']" :key="avv.id + '-dati-' + ruolo">
-                                <td>{{ ruolo }}</td>
-                                <td>{{ statAvversarioRuolo(avv.id, ruolo).slotOccupati }} / {{ statAvversarioRuolo(avv.id, ruolo).slotTotali }}</td>
-                                <td :class="{ 'dato-nascosto': datiSensibiliNascosti }">{{ round2(statAvversarioRuolo(avv.id, ruolo).creditiSpesi) }}</td>
-                            </tr>
-                        </table>
                     </div>
                 </div>
                 <p class="note" v-else>Nessun avversario configurato.</p>
@@ -796,7 +796,7 @@
                 // Sotto-schede delle tab "Utente" e "Altri Giocatori" (punti 1 e 2 richiesti):
                 // stato puramente di navigazione UI, non incide su nessun calcolo.
                 const subTabUtente = ref('Mia_Squadra');
-                const subTabAltriGiocatori = ref('Altre_Squadre');
+                const subTabAltriGiocatori = ref('Dati_Altri_Giocatori');
                 const datiSensibiliNascosti = ref(false);
                 
                 // Stato Reattivo
