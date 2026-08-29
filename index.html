@@ -157,6 +157,15 @@
         .star-btn.active { color: var(--squadra); }
         .col-star { width: 5%; text-align: center; }
         .col-conteso { width: 8%; text-align: center; }
+        /* I) Cella "rilanci osservati" + checkbox "molto conteso": layout compatto in riga, stesso
+           linguaggio visivo dei pulsanti compatti già in app (note-btn) per non introdurre uno stile
+           nuovo. rilancio-btn riusa la stessa forma di note-btn ma più piccola (contatore, non icona). */
+        .conteso-cell { display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .rilancio-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); cursor: pointer; padding: 2px 6px; font-size: 12px; line-height: 1.4; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+        .rilancio-btn:hover { background: var(--surface-alt); border-color: #4d5566; color: var(--primary); }
+        .rilancio-reset { color: var(--text-muted); opacity: 0.7; }
+        .rilancio-reset:hover { color: var(--danger); border-color: var(--danger); opacity: 1; }
+        .conteso-checkbox:disabled { opacity: 0.35; cursor: not-allowed; }
         .conteso-checkbox { width: auto !important; margin: 0; accent-color: var(--danger); }
         .badge-interval { display: inline-block; margin-left: 5px; color: var(--text-muted); font-size: 11px; white-space: nowrap; cursor: help; }
 
@@ -418,8 +427,19 @@
                         </span>
                     </td>
                     <td v-if="!datiSensibiliNascosti" class="col-conteso">
-                        <input class="conteso-checkbox" type="checkbox" v-model="g.moltoConteso" @change="salvaStato"
-                               title="Segna manualmente come giocatore molto conteso: applica un piccolo moltiplicatore al MAX_D">
+                        <div class="conteso-cell">
+                            <button type="button" class="rilancio-btn" @click="incrementaRilanci(g)"
+                                    :title="'Registra un rilancio osservato dal vivo su questo giocatore (' + (g.rilanciOsservati || 0) + '/' + sogliaRilanciConteso + ' per sbloccare Molto Conteso)'">
+                                +{{ g.rilanciOsservati || 0 }}
+                            </button>
+                            <input class="conteso-checkbox" type="checkbox" v-model="g.moltoConteso"
+                                   :disabled="!contesoSbloccabile(g)" @change="salvaStato"
+                                   :title="contesoSbloccabile(g)
+                                       ? 'Segna come molto conteso: applica un piccolo moltiplicatore al MAX_D'
+                                       : 'Sbloccabile dopo ' + sogliaRilanciConteso + ' rilanci osservati (registrati col pulsante a sinistra) — attuali: ' + (g.rilanciOsservati || 0)">
+                            <button type="button" class="rilancio-btn rilancio-reset" v-if="g.rilanciOsservati > 0" @click="azzeraRilanci(g)"
+                                    title="Azzera il contatore rilanci (correggi un click accidentale)">↺</button>
+                        </div>
                     </td>
                     <td>
                         <div class="stato-checkboxes">
@@ -747,6 +767,7 @@
                     epsilonSazietaGenerale: 0.2,                 // F: riduzione di MAX_D in base al solo riempimento fisico del ruolo (indipendente da CAT)
                     sazietaGeneraleMin: 0.8,                      // F: pavimento della sazietà generale (mai sotto l'80%, effetto volutamente più soft di quella per-CAT)
                     moltiplicatoreGiocatoreConteso: 1.15,          // G: maggiorazione manuale per un giocatore noto come molto conteso
+                    sogliaRilanciConteso: 2,                       // I: n. rilanci osservati (registrati a mano) richiesti per sbloccare il flag "molto conteso"
                     coefficienteIntervalloDispersione: 0.75,       // G: ampiezza dell'intervallo MAX_D derivata dalla dispersione osservata
                     ampiezzaIntervalloMin: 0.08,                   // G: larghezza minima relativa dell'intervallo quando la dispersione è presente
                     ampiezzaIntervalloMax: 0.35,                   // G: evita intervalli eccessivamente larghi per outlier isolati
@@ -757,7 +778,6 @@
                     limiteScartoRiallocazione: 1.0,                 // F: clamp dello scarto relativo (evita overreaction su outlier)
                     correlazioneMercato: 0.45                       // H: sconto peso per ogni ulteriore fattore ①③④ concorde (vedi combinaFattoriCorrelati)
                 };
-
                 // Rampa di confidenza 0→1: sostituisce i vecchi cutoff a gradino. Con n=0 resta 0
                 // (nessuna correzione, formula originale), con n≥n0 satura a 1 (correzione piena).
                 const sogliaConfidenza = (n, n0) => n0 > 0 ? clampValore(n / n0, 0, 1) : 1;
@@ -918,6 +938,11 @@
                     (lista || []).forEach(g => {
                         if (g.preferito === undefined) g.preferito = false;
                         if (g.moltoConteso === undefined) g.moltoConteso = false;
+                        // I) Contatore di rilanci osservati registrato a mano dall'utente durante l'asta
+                        // live: sblocca il flag "molto conteso" solo dopo un numero minimo di rilanci
+                        // realmente visti (FINETUNING.sogliaRilanciConteso), invece di lasciarlo
+                        // impostabile "a freddo" prima che la contesa si sia davvero manifestata.
+                        if (g.rilanciOsservati === undefined) g.rilanciOsservati = 0;
                         if (g.avversarioId === undefined || g.avversarioId === null) g.avversarioId = '';
                     });
                     return lista;
@@ -2039,8 +2064,13 @@
                     let valore = Math.round(g.max * fattoreMercatoCombinato * moltiplicatoreCategoria * fattoreRuolo * sazieta * sazietaGenerale * riallocazioneCat);
 
                     // [Nuovo] Segnale manuale di domanda molto contesa: non prova a stimare il rivale,
-                    // ma incorpora l'informazione qualitativa che l'utente possiede e i dati aggregati non possono vedere.
-                    if (g.moltoConteso) {
+                    // ma incorpora l'informazione qualitativa che l'utente possiede e i dati aggregati
+                    // non possono vedere. I) Controllo ridondante lato motore (oltre al checkbox
+                    // disabilitato in UI finché contesoSbloccabile(g) è falso): anche se g.moltoConteso
+                    // risultasse true per altra via (import di un backup, modifica manuale dei dati,
+                    // bug futuro nell'UI), il moltiplicatore non si applica senza il numero minimo di
+                    // rilanci realmente osservati e registrati. Il motore resta autorevole, non l'UI.
+                    if (g.moltoConteso && (g.rilanciOsservati || 0) >= FINETUNING.sogliaRilanciConteso) {
                         valore = Math.round(valore * FINETUNING.moltiplicatoreGiocatoreConteso);
                     }
 
@@ -2186,6 +2216,12 @@
                     if (g.stato === 'L') {
                         g.costo_reale = 0;
                         g.avversarioId = '';
+                        // I) Il ritorno a "Libero" annulla anche l'osservazione di contesa: i rilanci
+                        // registrati appartenevano a quella specifica sessione di rilanci, ora conclusa
+                        // (o annullata). Un'eventuale prossima asta sullo stesso giocatore riparte da
+                        // zero, senza ereditare un "molto conteso" sbloccato da una sessione precedente.
+                        g.rilanciOsservati = 0;
+                        g.moltoConteso = false;
                         rimuoviTransazione(g.nome);
                     } else if (g.stato === 'M') {
                         g.avversarioId = '';
@@ -2206,6 +2242,34 @@
                     g.stato = (g.stato === valore) ? 'L' : valore;
                     if (g.stato === 'A' && !g.avversarioId) g.avversarioId = avversari.value[0]?.id || '';
                     onUpdateStato(g);
+                };
+
+                // I) "Molto conteso" sbloccabile solo dopo rilanci osservati [nuovo, discusso].
+                // Il flag manuale moltoConteso applica un moltiplicatore fisso (+15%) direttamente
+                // al tetto di spesa: impostabile "a freddo" (prima che una vera contesa si sia
+                // manifestata) è il punto in cui il bias comportamentale più comune in un'asta
+                // (sopravvalutare un giocatore perché "sembra conteso" nel calore del momento) può
+                // legittimare se stesso alzando proprio il numero che dovrebbe proteggere l'utente da
+                // quel bias. Qui il checkbox resta disabilitato finché l'utente non ha registrato,
+                // rilancio per rilancio mentre li osserva dal vivo, almeno FINETUNING.sogliaRilanciConteso
+                // conferme: un segnale comportamentale osservato in tempo reale, non una previsione
+                // anticipata. incrementaRilanci è pensato per essere premuto una volta per ogni
+                // rilancio effettivo visto sul giocatore durante l'asta.
+                const contesoSbloccabile = (g) => (g.rilanciOsservati || 0) >= FINETUNING.sogliaRilanciConteso;
+                const sogliaRilanciConteso = FINETUNING.sogliaRilanciConteso;
+
+                const incrementaRilanci = (g) => {
+                    g.rilanciOsservati = (g.rilanciOsservati || 0) + 1;
+                    salvaStato();
+                };
+                // Correzione di un click accidentale: azzera il contatore e, di conseguenza, ritira
+                // anche il flag "molto conteso" se era stato sbloccato sulla base di quei rilanci —
+                // niente lascia moltoConteso attivo con un contatore sceso sotto soglia (stesso
+                // principio del controllo ridondante lato motore, vedi calcolaMaxDNumerico).
+                const azzeraRilanci = (g) => {
+                    g.rilanciOsservati = 0;
+                    g.moltoConteso = false;
+                    salvaStato();
                 };
 
                 const esportaDati = () => {
@@ -2275,6 +2339,7 @@
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
+                    incrementaRilanci, azzeraRilanci, contesoSbloccabile, sogliaRilanciConteso,
                     filtri, categorie, resetFiltri, ordinamento, cambiaOrdinamento, iconaOrdinamento,
                     locked, inputPassword, erroreSblocco, passwordImpostata, attivaLock, tentaSblocco, cambiaPassword,
                     accessGranted, inputAccesso, erroreAccesso, tentaAccesso
