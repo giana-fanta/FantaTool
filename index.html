@@ -45,6 +45,10 @@
         /* Badge di confidenza accanto a MAX_D (punto 5): grigio neutro, non un giudizio di valore
            come badge-ok/badge-warn, solo un'indicazione di "quanto dato reale" c'è dietro il numero. */
         .badge-conf { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); font-weight: normal; margin-left: 5px; cursor: help; }
+        /* Badge "cap individuale non attivo" (punto 2 discusso): stessa tonalità di avviso di
+           badge-warn (rosso-ambra), ma classe propria per poterne differenziare lo stile in futuro
+           senza toccare badge-warn (usato anche per "giocatore molto conteso" con significato diverso). */
+        .badge-cap-avviso { background: #3d2730; color: #e8919e; border: 1px solid #5a3438; font-weight: normal; margin-left: 5px; cursor: help; }
         
         /* Inputs & Buttons */
         select, input[type="number"], input[type="text"] { padding: 6px; border: 1px solid var(--border); border-radius: 4px; width: 100%; box-sizing: border-box; background: var(--surface-alt); color: #ced3dd; }
@@ -408,6 +412,10 @@
                               :title="tooltipIntervalloMaxD(g)">
                             ≈ {{ intervalloMaxD(g).min }}–{{ intervalloMaxD(g).max }}
                         </span>
+                        <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivo" class="badge badge-cap-avviso"
+                              :title="'Cap individuale sul rivale piu forte non attivo: ' + acquistiAvversariNonAssegnati + ' acquisti \'Altri\' hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Altri Partecipanti), il motore usa la stima aggregata sugli avversari, meno precisa.'">
+                            ⚠ cap agg.
+                        </span>
                     </td>
                     <td v-if="!datiSensibiliNascosti" class="col-conteso">
                         <input class="conteso-checkbox" type="checkbox" v-model="g.moltoConteso" @change="salvaStato"
@@ -563,6 +571,10 @@
                             <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA'" class="badge badge-conf"
                                   title="Confidenza delle correzioni dinamiche del motore MAX_D: quanto del valore deriva da dati &quot;Altri&quot; realmente osservati finora (0% = ancora la sola formula base, 100% = campione sufficiente su tutti i fronti). Non misura l'affidabilità della stima, solo quanti dati reali la sostengono.">
                                 {{ calcolaConfidenzaMaxD(g) }}%
+                            </span>
+                            <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivo" class="badge badge-cap-avviso"
+                                  :title="'Cap individuale sul rivale piu forte non attivo: ' + acquistiAvversariNonAssegnati + ' acquisti \'Altri\' hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Altri Partecipanti), il motore usa la stima aggregata sugli avversari, meno precisa.'">
+                                ⚠ cap agg.
                             </span>
                         </td>
                         <td>{{ g.stato === 'L' ? 'Libero' : (g.stato === 'M' ? 'Mio' : nomeAvversario(g.avversarioId)) }}</td>
@@ -1031,6 +1043,18 @@
                 const acquistiAvversariNonAssegnati = computed(() =>
                     giocatori.value.filter(g => g.stato === 'A' && !g.avversarioId && g.costo_reale > 0).length
                 );
+
+                // [Badge "cap individuale non attivo"] Riusa la STESSA condizione già impiegata dal
+                // motore in due punti (coperturaManager in calcolaMaxDNumerico, e il cap
+                // "min(valore, concorrenza.bid + 1)" poco più sotto): finché anche un solo acquisto
+                // "Altri" ha un costo registrato ma nessun avversario assegnato, il motore non applica
+                // il tetto basato sul rivale più forte conosciuto e ricade sulla stima aggregata (meno
+                // precisa, vedi nota "tirannia della media" su capacitaSpesaAltri). Prima di questo
+                // badge quell'informazione era visibile solo nel pannello "Impostazioni Altri
+                // Partecipanti" (riga 226), non nel momento — davanti al numero MAX_D di un giocatore
+                // specifico — in cui serve davvero. Nessuna nuova logica di calcolo: solo un'esposizione
+                // in UI di una condizione che il motore già usa internamente.
+                const capIndividualeNonAttivo = computed(() => acquistiAvversariNonAssegnati.value > 0);
 
                 const onNumeroAvversariChange = () => {
                     const vecchi = Array.isArray(config.value.avversari) ? config.value.avversari : [];
@@ -2247,7 +2271,7 @@
                     riservaOccResidua, riservaOccConsumata,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
-                    avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati,
+                    avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
