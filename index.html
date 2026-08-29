@@ -1363,7 +1363,7 @@
                 const countCat = (ruolo, cat) =>
                     giocatori.value.filter(g => g.ruolo === ruolo && g.cat === cat).length;
 
-                // Colonna F del foglio Dashboard: quota "di valore" ancora libera sul mercato per il ruolo,
+                // Colonna F del foglio Dashboard: quota "di valore" già presa sul mercato per il ruolo,
                 // pesata per importanza di categoria (Occ 5, Pun 4, Tit 3, Scm 2, Sca 1)
                 const inflazioneRuolo = (ruolo) => {
                     let num = 0, den = 0;
@@ -1898,7 +1898,7 @@
                 const fattoreRank = (g, fRuolo) => {
                     const percentile = percentileMaxInCat(g);
                     const confCampione = sogliaConfidenza(countCat(g.ruolo, g.cat), FINETUNING.sogliaCampioneRank);
-                    return 1 + FINETUNING.deltaRank * percentile * (1 - fRuolo) * confCampione;
+                    return 1 + FINETUNING.deltaRank * percentile * fRuolo * confCampione;
                 };
 
                 // H) Compressione correlazione mercato [nuovo, discusso]: ①(inflazione ibrida),
