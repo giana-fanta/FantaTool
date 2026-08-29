@@ -200,10 +200,39 @@
             </div>
         </div>
 
-        <!-- IMPOSTAZIONI ALTRI PARTECIPANTI -->
-        <div v-if="currentTab === 'Impostazioni_Altri'">
-            <h2>Impostazioni Altri Partecipanti</h2>
-            <p class="note">Configura il numero degli avversari e i relativi nomi. Questi dati determinano i partecipanti disponibili nelle tendine di assegnazione e la capacità economica individuale utilizzata dal motore.</p>
+        <!-- IMPOSTAZIONI LEGA -->
+        <div v-if="currentTab === 'Impostazioni_Lega'">
+            <h2>Impostazioni Lega</h2>
+            <p class="note">Configura il budget della lega, come si distribuisce tra i ruoli, il numero degli avversari e i relativi nomi. Questi dati determinano i target di spesa per ruolo, i partecipanti disponibili nelle tendine di assegnazione e la capacità economica individuale utilizzata dal motore.</p>
+
+            <h3 style="margin:20px 0 8px 0; font-size:15px; color:#e6e9f0;">Budget e distribuzione per ruolo</h3>
+            <div class="config-avversari" style="margin-bottom:24px;">
+                <div class="config-avversari-head">
+                    <div class="campo">
+                        <label>Budget iniziale (crediti)</label>
+                        <input class="config-avversari-count" type="number" min="1" v-model.number="config.budget_iniziale" @change="salvaStato">
+                    </div>
+                    <div style="flex:1; min-width:260px;">
+                        <strong>Budget totale a disposizione di ogni partecipante</strong>
+                        <div class="note" style="margin:4px 0 0 0;">Insieme alle percentuali per ruolo qui sotto, determina i target di spesa (colonna "Budget" del Control Panel) usati dal motore per calcolare MAX_D — non è più un valore fisso valido solo per un'asta a 500 crediti.</div>
+                    </div>
+                </div>
+                <div class="config-avversari-head" style="margin-top:16px; align-items:flex-end; flex-wrap:wrap;">
+                    <div class="campo" v-for="ruolo in ['P','D','C','A']" :key="'quota-' + ruolo" style="min-width:90px;">
+                        <label>% Budget {{ ruolo }}</label>
+                        <input type="number" min="0" max="100" step="0.1" v-model.number="config.quote_budget_ruoli[ruolo]" @change="salvaStato">
+                    </div>
+                    <div class="campo" style="min-width:140px;">
+                        <label>Somma percentuali</label>
+                        <span :class="['badge', quoteBudgetRuoliValide ? 'badge-ok' : 'badge-warn']" style="padding:7px 10px;">
+                            {{ round2(sommaQuoteBudgetRuoli) }}%{{ quoteBudgetRuoliValide ? ' ✓' : '' }}
+                        </span>
+                    </div>
+                </div>
+                <p class="note" style="margin-top:10px;" v-if="!quoteBudgetRuoliValide">⚠️ Le percentuali per ruolo sommano a {{ round2(sommaQuoteBudgetRuoli) }}% invece che 100%: il motore userà comunque questi valori così come sono, ma i target di spesa per ruolo non rappresenteranno più l'intero budget iniziale — correggile perché tornino a sommare 100%.</p>
+            </div>
+
+            <h3 style="margin:20px 0 8px 0; font-size:15px; color:#e6e9f0;">Partecipanti avversari</h3>
             <div class="config-avversari">
                 <div class="config-avversari-head">
                     <div class="campo">
@@ -413,7 +442,7 @@
                             ≈ {{ intervalloMaxD(g).min }}–{{ intervalloMaxD(g).max }}
                         </span>
                         <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivoPerRuolo(g.ruolo)" class="badge badge-cap-avviso"
-                              :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Altri Partecipanti), il motore usa la stima aggregata sugli avversari, meno precisa.'">
+                              :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), il motore usa la stima aggregata sugli avversari, meno precisa.'">
                             ⚠ cap agg.
                         </span>
                     </td>
@@ -573,7 +602,7 @@
                                 {{ calcolaConfidenzaMaxD(g) }}%
                             </span>
                             <span v-if="g.stato === 'L' && statoAsta !== 'NON INIZIATA' && capIndividualeNonAttivoPerRuolo(g.ruolo)" class="badge badge-cap-avviso"
-                                  :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Altri Partecipanti), il motore usa la stima aggregata sugli avversari, meno precisa.'">
+                                  :title="'Cap individuale sul rivale piu forte non attivo per il ruolo ' + g.ruolo + ': ' + acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) + ' acquisti \'Altri\' in questo ruolo hanno un costo registrato ma nessun avversario assegnato. Finche non li assegni (scheda Impostazioni Lega), il motore usa la stima aggregata sugli avversari, meno precisa.'">
                                 ⚠ cap agg.
                             </span>
                         </td>
@@ -641,7 +670,7 @@
 
         createApp({
             setup() {
-                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra', 'Altre_Squadre', 'Impostazioni_Altri', 'Salvati'];
+                const tabs = ['Control_Panel', 'P', 'D', 'C', 'A', 'Extra', 'Mia_Squadra', 'Altre_Squadre', 'Impostazioni_Lega', 'Salvati'];
                 const currentTab = ref('Control_Panel');
                 const datiSensibiliNascosti = ref(false);
                 
@@ -659,7 +688,7 @@
                 // finché non risulta effettivamente consumata (vedi riservaOccResidua). Default 0 =
                 // comportamento identico a prima per chi non la configura (retrocompatibile con i
                 // dati.json/backup esistenti, che non hanno questo campo).
-                const config = ref({ budget_iniziale: 500, slot_ruoli: { P:3, D:8, C:8, A:6 }, budget_riserva_occ: 0, numero_avversari: 9, avversari: [] });
+                const config = ref({ budget_iniziale: 500, slot_ruoli: { P:3, D:8, C:8, A:6 }, quote_budget_ruoli: { P: 6, D: 9, C: 20, A: 65 }, budget_riserva_occ: 0, numero_avversari: 9, avversari: [] });
 
                 const creaListaAvversari = (n, esistenti = []) => {
                     const totale = Math.max(1, Math.min(30, Number(n) || 1));
@@ -684,12 +713,27 @@
 
                 // Parametri "Dashboard" del file Excel (target di budget e slot per ruolo,
                 // tolleranze e potenze usate nel motore MAX_D). Riportati 1:1 dal foglio Dashboard.
+                // [Fix] budgetTarget non è più un importo assoluto fisso qui dentro: prima valeva
+                // 30/45/100/325 (calibrato solo per un budget totale di 500 crediti) e non si
+                // riscalava se l'utente configurava un budget diverso, disallineando silenziosamente
+                // V/W/X, R, O/P/Q e quindi l'intero motore di correzione (nessuna validazione lo
+                // segnalava). Ora è derivato in roleMetrics da una PERCENTUALE del budget reale
+                // (config.quote_budget_ruoli, editabile nel pannello "Impostazioni Lega"), quindi
+                // resta valido a qualunque budget totale. I restanti parametri (target di quota slot,
+                // tolleranza, esponente di sazietà) non dipendono dall'importo assoluto del budget e
+                // restano costanti fisse come prima.
                 const ROLE_CONFIG = {
-                    P: { budgetTarget: 30,  targetOP: 0.30, targetTit: 0.30, tolleranza: 0.9, potenza: 3 },
-                    D: { budgetTarget: 45,  targetOP: 0.30, targetTit: 0.20, tolleranza: 0.9, potenza: 2 },
-                    C: { budgetTarget: 100, targetOP: 0.30, targetTit: 0.20, tolleranza: 0.8, potenza: 0.5, gainScarsita: 1.6 },
-                    A: { budgetTarget: 325, targetOP: 0.30, targetTit: 0.10, tolleranza: null, potenza: null } // per gli attaccanti V=W=X=1 fisso
+                    P: { targetOP: 0.30, targetTit: 0.30, tolleranza: 0.9, potenza: 3 },
+                    D: { targetOP: 0.30, targetTit: 0.20, tolleranza: 0.9, potenza: 2 },
+                    C: { targetOP: 0.30, targetTit: 0.20, tolleranza: 0.8, potenza: 0.5, gainScarsita: 1.6 },
+                    A: { targetOP: 0.30, targetTit: 0.10, tolleranza: null, potenza: null } // per gli attaccanti V=W=X=1 fisso
                 };
+                // Percentuali di default del budget totale per ruolo: riproducono esattamente i vecchi
+                // importi fissi (30/45/100/325 su un budget di 500 = 6%/9%/20%/65%), usate sia come
+                // valore iniziale di config.quote_budget_ruoli sia come fallback per dati mancanti/
+                // corrotti in normalizzaConfig. Devono sommare 100 — il pannello "Impostazioni Lega"
+                // segnala all'utente quando la somma configurata si discosta da 100.
+                const QUOTE_BUDGET_RUOLI_DEFAULT = { P: 6, D: 9, C: 20, A: 65 };
                 // Pesi per l'indice di "inflazione di ruolo" (colonna F del foglio Dashboard)
                 const PESO_INFLAZIONE = { Occ: 5, Pun: 4, Tit: 3, Scm: 2, Sca: 1 };
                 // Peso additivo per categoria usato nella formula MAX_D (IF a cascata nel file Excel)
@@ -938,6 +982,18 @@
                     const base = valore && typeof valore === 'object' ? { ...valore } : {};
                     base.budget_iniziale = Number(base.budget_iniziale ?? 500);
                     base.slot_ruoli = { P: 3, D: 8, C: 8, A: 6, ...(base.slot_ruoli || {}) };
+                    // [Fix] Percentuali di budget per ruolo, ora configurabili (pannello "Impostazioni
+                    // Lega") invece che importi fissi hardcoded nel motore — vedi ROLE_CONFIG/
+                    // QUOTE_BUDGET_RUOLI_DEFAULT e roleMetrics. Retrocompatibile: backup/localStorage
+                    // precedenti non hanno questo campo, quindi si riparte dal default (che riproduce
+                    // esattamente i vecchi importi fissi 30/45/100/325 su un budget di 500). Ogni
+                    // valore viene inoltre coercizzato a numero finito, con fallback al default per
+                    // ruolo in caso di dato mancante o corrotto in un import.
+                    base.quote_budget_ruoli = { ...QUOTE_BUDGET_RUOLI_DEFAULT, ...(base.quote_budget_ruoli || {}) };
+                    ['P', 'D', 'C', 'A'].forEach(r => {
+                        const v = Number(base.quote_budget_ruoli[r]);
+                        base.quote_budget_ruoli[r] = Number.isFinite(v) ? v : QUOTE_BUDGET_RUOLI_DEFAULT[r];
+                    });
                     base.budget_riserva_occ = Number(base.budget_riserva_occ ?? 0);
                     const legacyN = Number(base.numero_avversari || 9);
                     base.numero_avversari = Math.max(1, Math.min(30, legacyN));
@@ -998,6 +1054,16 @@
                 // riempire gli stessi slot per ruolo previsti da config.slot_ruoli.
                 const NUM_AVVERSARI = 9; // fallback per la lettura dei dati legacy privi di configurazione; il modello attuale usa config.numero_avversari.
                 const numeroAvversari = computed(() => Math.max(1, Number(config.value.numero_avversari || avversari.value.length || NUM_AVVERSARI)));
+
+                // Somma delle percentuali di budget per ruolo configurate (pannello "Impostazioni
+                // Lega") e relativo controllo di quadratura: il motore usa comunque i valori così
+                // come sono (roleMetrics non richiede che sommino a 100), ma se non sommano a 100 i
+                // target di spesa per ruolo non rappresentano più l'intero budget iniziale — l'utente
+                // viene avvisato in UI, non bloccato.
+                const sommaQuoteBudgetRuoli = computed(() =>
+                    ['P', 'D', 'C', 'A'].reduce((s, r) => s + Number(config.value.quote_budget_ruoli?.[r] || 0), 0)
+                );
+                const quoteBudgetRuoliValide = computed(() => Math.abs(sommaQuoteBudgetRuoli.value - 100) < 0.05);
 
                 const nomeAvversario = (id) => {
                     const avv = avversari.value.find(a => a.id === id);
@@ -1075,7 +1141,7 @@
                 // avversario assegnato, il motore non applica il tetto basato sul rivale più forte
                 // conosciuto e ricade sulla stima aggregata (meno precisa, vedi nota "tirannia della
                 // media" su capacitaSpesaAltri). Prima di questo badge quell'informazione era visibile
-                // solo nel pannello "Impostazioni Altri Partecipanti" (riga 226), non nel momento —
+                // solo nel pannello "Impostazioni Lega" (sezione "Partecipanti avversari"), non nel momento —
                 // davanti al numero MAX_D di un giocatore specifico — in cui serve davvero. Nessuna
                 // nuova logica di calcolo: solo un'esposizione in UI di una condizione che il motore già
                 // usa internamente, scoped per ruolo come il motore stesso.
@@ -1184,7 +1250,11 @@
                     const cfg = ROLE_CONFIG[ruolo];
                     const slotTot = config.value.slot_ruoli[ruolo];
                     const slotLiberi = slotTot - countStato(ruolo, 'M') - (extra.value[ruolo]?.slot || 0);
-                    const budgetTarget = cfg.budgetTarget;
+                    // [Fix] budgetTarget = percentuale configurata per il ruolo (config.quote_budget_ruoli,
+                    // default QUOTE_BUDGET_RUOLI_DEFAULT) applicata al budget REALE della lega
+                    // (config.budget_iniziale), non più un importo fisso indipendente da esso.
+                    const quotaBudget = Number(config.value.quote_budget_ruoli?.[ruolo] ?? QUOTE_BUDGET_RUOLI_DEFAULT[ruolo]) / 100;
+                    const budgetTarget = quotaBudget * Number(config.value.budget_iniziale || 0);
                     const spesaReale = giocatori.value
                         .filter(g => g.ruolo === ruolo && g.stato === 'M')
                         .reduce((s, g) => s + (g.costo_reale || 0), 0) + (extra.value[ruolo]?.crediti || 0);
@@ -1915,7 +1985,24 @@
                     );
 
                     const min = Math.max(1, Math.round(centrale * (1 - ampiezza)));
-                    const max = Math.max(min, Math.round(centrale * (1 + ampiezza)));
+                    let max = Math.max(min, Math.round(centrale * (1 + ampiezza)));
+
+                    // [Fix] Il limite superiore del range non deve mai eccedere i due tetti "duri"
+                    // già applicati a "centrale" stesso (cap sul rivale più forte conosciuto e
+                    // vincolo di solvibilità fisico, entrambi in calcolaMaxDNumerico): altrimenti
+                    // l'intervallo, pur etichettato come "non un prezzo consigliato" nel tooltip,
+                    // mostrerebbe accanto a MAX_D un numero che il motore stesso considera
+                    // fisicamente o economicamente insostenibile — in contraddizione con il ruolo di
+                    // MAX_D come soglia massima da non superare. "centrale" è già ≤ a entrambi i
+                    // tetti per costruzione, quindi questo taglio non può mai scendere sotto "min".
+                    // Stesse condizioni/formule usate in calcolaMaxDNumerico, per restare coerenti.
+                    const concorrenzaRange = massimaConcorrenzaEconomica(g.ruolo);
+                    if (acquistiAvversariNonAssegnatiPerRuolo(g.ruolo) === 0 && concorrenzaRange.bid > 0) {
+                        max = Math.min(max, concorrenzaRange.bid + 1);
+                    }
+                    const tettoSolvibilitaRange = Math.max(0, budgetResiduo.value - (slotLiberiTotali.value - 1));
+                    max = Math.max(min, Math.min(max, tettoSolvibilitaRange));
+
                     return { min, max, ampiezza, dispersione };
                 };
 
@@ -2327,7 +2414,7 @@
                     riservaOccResidua, riservaOccConsumata,
                     giocatoriComprati, spesaPerRuolo, budgetAssegnatoPerRuolo, creditiPerSlotReale, composizione,
                     mediaCreditiMiei, mediaCreditiAltri, slotAltriDaRiempire, statoSlotAvversari,
-                    avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo,
+                    avversari, nomeAvversario, statAvversario, giocatoriAvversarioPerRuolo, onNumeroAvversariChange, onAvversarioSelectChange, acquistiAvversariNonAssegnati, capIndividualeNonAttivo, acquistiAvversariNonAssegnatiPerRuolo, capIndividualeNonAttivoPerRuolo, sommaQuoteBudgetRuoli, quoteBudgetRuoliValide,
                     composizioneLiberiCat, conicGradientCat,
                     onSlotExtraChange, extraDettagli, extraAvversari, stepAvversarioExtra, salvaAvversariExtra, giocatoriMieiPerRuolo, togglePreferito, notaAperta, apriNote, chiudiNote, giocatoriPreferitiPerRuolo, stepExtra,
                     calcolaMaxD, calcolaConfidenzaMaxD, intervalloMaxD, tooltipIntervalloMaxD, onUpdateStato, toggleStato, onCostoRealeChange, salvaStato, esportaDati, importaDati, triggerImportBackup, resetDati, round2, formatPct,
