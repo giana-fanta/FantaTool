@@ -918,6 +918,14 @@
 
                     // Correlazione tra segnali di mercato: ora solo ① e ③ sono combinati qui.
                     correlazioneMercato: 0.35,
+                    // Stesso ruolo di correlazioneMercato ma per i fattori di
+                    // saturazione (sazieta, sazietaGenerale, riallocazioneCat
+                    // contrattiva): il grado di ridondanza tra "questo ruolo si sta
+                    // riempiendo" misurato da angolazioni diverse non è detto sia
+                    // identico a quello tra i segnali di mercato ①②③, quindi ha una
+                    // costante propria invece di riusare correlazioneMercato — oggi
+                    // stesso valore di default, tarabile indipendentemente in futuro.
+                    correlazioneSaturazione: 0.35,
 
                     // Smorzamento pro-ciclico: l'asta non può far crescere indefinitamente il cap quando
                     // il margine economico dell'utente si sta esaurendo.
@@ -1513,8 +1521,20 @@
                         .reduce((s, g) => s + (g.costo_reale || 0), 0) + (extra.value[ruolo]?.crediti || 0);
                     const F = inflazioneRuolo(ruolo);
 
-                    const H = Math.ceil(slotTot * cfg.targetOP);  // target slot Occ/Pun
-                    const I = Math.ceil(slotTot * cfg.targetTit); // target slot Titolari
+                    // [Cap disponibilità listone] H/I sono target strategici derivati da una
+                    // percentuale fissa di slotTot, ma non hanno senso se il listone non
+                    // contiene abbastanza giocatori di quella CAT per raggiungerli — in tal
+                    // caso il target va cappato al massimo fisicamente disponibile, non
+                    // lasciato "a vuoto" per l'intera asta (caso reale: targetTit per P
+                    // produce un target Titolari-Portiere anche quando nel listone non
+                    // esiste NESSUN portiere classificato Tit). Il conteggio usa countCat
+                    // (tutti gli stati L/M/A, non solo i liberi): H/I restano target fissi
+                    // legati alla composizione del listone, non alla disponibilità residua
+                    // in tempo reale — che è un concetto diverso, già gestito altrove (L/M).
+                    const poolOccPunRuolo = countCat(ruolo, 'Occ') + countCat(ruolo, 'Pun');
+                    const poolTitRuolo = countCat(ruolo, 'Tit');
+                    const H = Math.min(Math.ceil(slotTot * cfg.targetOP), poolOccPunRuolo);  // target slot Occ/Pun, cappato al listone
+                    const I = Math.min(Math.ceil(slotTot * cfg.targetTit), poolTitRuolo);    // target slot Titolari, cappato al listone
                     const J = countCatStato(ruolo, 'Occ', 'M') + countCatStato(ruolo, 'Pun', 'M');
                     const K = countCatStato(ruolo, 'Tit', 'M');
                     const L = Math.max(0, H - J);
@@ -2094,7 +2114,11 @@
                 //    più forte dei due" e "prodotto pieno", mai fuori da quell'intervallo, e monotono
                 //    in ciascun fattore in ingresso (più forte è un segnale, più il risultato si sposta
                 //    verso il prodotto pieno di quel segnale, mai lo supera).
-                const combinaFattoriCorrelati = (fattori) => {
+                // Parametrizzata sul coefficiente di sconto (rho): default =
+                // correlazioneMercato per non alterare le chiamate esistenti
+                // (①②③ di mercato). Riusata anche per i fattori di saturazione
+                // (vedi calcolaMaxDNumerico) con un proprio coefficiente dedicato.
+                const combinaFattoriCorrelati = (fattori, rho = FINETUNING.correlazioneMercato) => {
                     const devLog = fattori.map(f => Math.log(Math.max(f, 1e-6)));
                     const sommaGrezza = devLog.reduce((s, v) => s + v, 0);
                     if (sommaGrezza === 0) return Math.exp(devLog.reduce((s, v) => s + v, 0)); // caso neutro/discorde puro
@@ -2104,7 +2128,7 @@
                     ordinati.forEach(d => {
                         const concorde = d !== 0 && Math.sign(d) === segnoPrevalente;
                         if (concorde) {
-                            totale += d * Math.pow(FINETUNING.correlazioneMercato, k);
+                            totale += d * Math.pow(rho, k);
                             k++;
                         } else {
                             totale += d; // discorde: nessuno sconto, pesa per intero come nel prodotto originale
@@ -2575,7 +2599,27 @@
                         ? 1 + (fattoreEspansivoGrezzo - 1) * smorzamentoGlobale
                         : fattoreEspansivoGrezzo;
 
-                    let valore = Math.round(g.max * fattoreEspansivo * fattoreRuolo * sazieta * sazietaGenerale * riallocazioneCat);
+                    // I tre fattori di saturazione (sazieta, sazietaGenerale,
+                    // riallocazioneCat) sono tutti PURI CONTRATTIVI (≤1 per
+                    // costruzione: i rispettivi floor sono tutti <1, il tetto è
+                    // sempre esattamente 1) e correlati tra loro per lo stesso motivo
+                    // per cui ①②③ sono correlati: misurano, con angolazioni diverse,
+                    // lo stesso fenomeno — "questo ruolo/CAT si sta riempiendo" (per
+                    // conteggio CAT-specifico, per occupazione generale del ruolo, per
+                    // costo-beneficio del bucket). Vengono quindi combinati con lo
+                    // stesso sconto geometrico già usato per i segnali di mercato,
+                    // invece di moltiplicarsi a piena forza — evitando che tre misure
+                    // parzialmente ridondanti comprimano MAX_D più del dovuto proprio
+                    // negli ultimi slot di un ruolo quasi saturo. fattoreRuolo (V/W/X)
+                    // resta FUORI: misura la disponibilità di BUDGET (non di
+                    // conteggio/occupazione), è il segnale primario del motore e resta
+                    // un fattore distinto, non soggetto a questo sconto — come già in
+                    // precedenza.
+                    const fattoreSaturazioneCombinato = combinaFattoriCorrelati(
+                        [sazieta, sazietaGenerale, riallocazioneCat],
+                        FINETUNING.correlazioneSaturazione
+                    );
+                    let valore = Math.round(g.max * fattoreEspansivo * fattoreRuolo * fattoreSaturazioneCombinato);
 
                     valore = valore < 1 ? 1 : valore;
 
