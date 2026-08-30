@@ -91,7 +91,7 @@
       "note": ""
     },
     {
-      "nome": "MASCARDI",
+      "nome": "PERRI",
       "ruolo": "P",
       "cat": "Scm",
       "max": 10,
@@ -471,11 +471,11 @@
     {
       "nome": "FORTINI",
       "ruolo": "D",
-      "cat": "Scm",
-      "max": 3,
+      "cat": "Pun",
+      "max": 4,
       "stato": "L",
       "costo_reale": 0,
-      "note": "con Pedersen"
+      "note": ""
     },
     {
       "nome": "FRANJIC",
@@ -883,15 +883,6 @@
       "note": ""
     },
     {
-      "nome": "PEDERSEN",
-      "ruolo": "D",
-      "cat": "Pun",
-      "max": 4,
-      "stato": "L",
-      "costo_reale": 0,
-      "note": "con Fortini"
-    },
-    {
       "nome": "PEDRAZA",
       "ruolo": "D",
       "cat": "Tit",
@@ -1180,6 +1171,69 @@
       "note": ""
     },
     {
+      "nome": "FABBIAN",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "LIBERALI",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "MILLA",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "RICCI",
+      "ruolo": "C",
+      "cat": "Sca",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "FOLORUNSHO",
+      "ruolo": "C",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "KESSIE'",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "GONZALEZ NICO",
+      "ruolo": "C",
+      "cat": "Scm",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
       "nome": "ALAJBEGOVIC",
       "ruolo": "C",
       "cat": "Scm",
@@ -1381,7 +1435,7 @@
       "nome": "COLPANI",
       "ruolo": "C",
       "cat": "Pun",
-      "max": 8,
+      "max": 5,
       "stato": "L",
       "costo_reale": 0,
       "note": "Piaz."
@@ -2179,6 +2233,33 @@
       "note": ""
     },
     {
+      "nome": "NGONGE",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 1,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "ESPOSITO S.",
+      "ruolo": "A",
+      "cat": "Tit",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
+      "nome": "BOBCEK",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 5,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": "interessante"
+    },
+    {
       "nome": "ADAMS C.",
       "ruolo": "A",
       "cat": "Scm",
@@ -2217,8 +2298,8 @@
     {
       "nome": "BOWIE",
       "ruolo": "A",
-      "cat": "Pun",
-      "max": 15,
+      "cat": "Scm",
+      "max": 5,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
@@ -2551,7 +2632,7 @@
       "nome": "RAIMONDO",
       "ruolo": "A",
       "cat": "Tit",
-      "max": 15,
+      "max": 25,
       "stato": "L",
       "costo_reale": 0,
       "note": ""
