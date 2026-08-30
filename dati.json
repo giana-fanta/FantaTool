@@ -2314,6 +2314,15 @@
       "note": ""
     },
     {
+      "nome": "ROMERO",
+      "ruolo": "A",
+      "cat": "Scm",
+      "max": 20,
+      "stato": "L",
+      "costo_reale": 0,
+      "note": ""
+    },
+    {
       "nome": "BOWIE",
       "ruolo": "A",
       "cat": "Scm",
